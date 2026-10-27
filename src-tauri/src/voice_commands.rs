@@ -83,24 +83,40 @@ fn push_capitalized(out: &mut String, word: &str) {
 }
 
 // ---------------------------------------------------------------------------
-// Spoken emoji: "<name> emoji", e.g. "red heart emoji", "thumbs up emoji
-// medium skin tone". Names are CLDR short names and GitHub shortcodes from the
-// `emojis` crate (full Unicode set, incl. skin-tone variants), plus a few
-// colloquial aliases. The trailing word "emoji" is required.
+// Spoken emoji: "<name> emoji", e.g. "red heart emoji", "sticking tongue out
+// emoji", "thumbs up emoji medium skin tone". The trailing word "emoji" is
+// required.
+//
+// 1. Exact: curated aliases > CLDR names > shortcodes (gemoji via `emojis`,
+//    emojibase, iamcal), incl. skin-tone variants and "<country> flag".
+// 2. Forgiving (only when "emoji" ends the phrase: last word, followed by
+//    punctuation, a skin tone or a voice command): the spoken words are stemmed,
+//    function words dropped, and every remaining word must appear in one
+//    emoji's names or CLDR/emojibase/gemoji keywords (`emoji_keywords.tsv`).
+//    Best Jaccard overlap with a single name (keywords weigh 0.85) wins, soft
+//    words ("face", "sticking", "out", ...) only break ties, then popularity.
 
 const EMOJI_WORD: &str = "emoji";
+const EMOJI_KEYWORDS: &str = include_str!("emoji_keywords.tsv");
 
-/// Colloquial names CLDR/GitHub lack. Checked after CLDR names and shortcodes.
+/// Colloquial names. Highest priority: checked before CLDR names and shortcodes.
 const EMOJI_ALIASES: &[(&str, &str)] = &[
     ("crying laughing", "😂"),
     ("laughing crying", "😂"),
     ("cry laughing", "😂"),
     ("laugh crying", "😂"),
+    ("laughing", "😂"),
+    ("lol", "😂"),
+    ("lmao", "🤣"),
     ("tears of joy", "😂"),
     ("love", "❤️"),
     ("love heart", "❤️"),
     ("smiley face", "😃"),
     ("happy face", "😀"),
+    ("happy", "😊"),
+    ("smiling", "😊"),
+    ("big smile", "😄"),
+    ("sad", "😢"),
     ("sad face", "😢"),
     ("crying", "😭"),
     ("shrug", "🤷"),
@@ -112,9 +128,52 @@ const EMOJI_ALIASES: &[(&str, &str)] = &[
     ("one hundred", "💯"),
     ("party", "🥳"),
     ("clapping", "👏"),
+    ("kiss", "😘"),
     ("kiss face", "😘"),
+    ("kissy face", "😘"),
     ("blowing a kiss", "😘"),
     ("mind blown", "🤯"),
+    ("eye roll", "🙄"),
+    ("rolling eyes", "🙄"),
+    ("tongue out", "😛"),
+    ("cool", "😎"),
+    ("ok", "👌"),
+    ("okay", "👌"),
+    ("check mark", "✅"),
+    ("checkmark", "✅"),
+    ("check", "✅"),
+    ("flex", "💪"),
+    ("money", "💰"),
+    ("hundred percent", "💯"),
+    ("100 percent", "💯"),
+    ("thank you", "🙏"),
+    ("angel", "😇"),
+    ("dead", "💀"),
+    ("im dead", "💀"),
+    ("scared", "😨"),
+    ("shocked", "😮"),
+    ("surprised", "😮"),
+    ("mad", "😡"),
+    ("crazy face", "🤪"),
+    ("side eye", "😒"),
+    ("throwing up", "🤮"),
+    ("lightbulb", "💡"),
+    ("pin", "📌"),
+    ("power wheelchair", "🧑‍🦼"),
+    ("electric wheelchair", "🧑‍🦼"),
+    ("manual wheelchair", "🧑‍🦽"),
+    ("wheelchair user", "🧑‍🦽"),
+];
+
+const EMOJI_BY_POPULARITY: &[&str] = &[
+    "😂", "❤️", "🤣", "👍", "😭", "🙏", "😘", "🥰", "😍", "😊", "🎉", "😁", "💕", "🥺", "😅", "🔥",
+    "☺️", "🤦", "♥️", "🤷", "🙄", "😆", "🤗", "😉", "🎂", "🤔", "👏", "🙂", "😳", "🥳", "😎", "👌",
+    "💜", "😔", "💪", "✨", "💖", "👀", "😋", "😏", "😢", "👉", "💗", "😩", "💯", "🌹", "💞", "🎈",
+    "💙", "😃", "😡", "💐", "😜", "🙈", "🤞", "😄", "🤤", "🙌", "🤪", "❣️", "😀", "💋", "💀", "👇",
+    "💔", "😌", "💓", "🤩", "🙃", "😬", "😱", "😴", "🤭", "😐", "🌞", "😒", "😇", "🌸", "😈", "🎶",
+    "✌️", "🎊", "🥵", "😞", "💚", "☀️", "🖤", "💰", "😚", "👑", "🎁", "💥", "🙋", "☹️", "😑", "🥴",
+    "👈", "💩", "✅", "👋", "🤯", "😛", "😝", "🫶", "🤡", "👻", "🎃", "🚀", "⭐", "🌈", "🍕", "☕",
+    "🍺", "🍷",
 ];
 
 const SKIN_TONES: &[(&str, emojis::SkinTone)] = &[
@@ -124,6 +183,65 @@ const SKIN_TONES: &[(&str, emojis::SkinTone)] = &[
     ("medium", emojis::SkinTone::Medium),
     ("dark", emojis::SkinTone::Dark),
 ];
+
+/// Dropped from spoken and indexed names; never required, never matched.
+const EMOJI_STOPWORDS: &[&str] = &[
+    "a", "an", "the", "my", "your", "our", "his", "her", "their", "its", "this", "that", "these",
+    "those", "of", "and", "or", "with", "to", "for", "in", "on", "at", "by", "from", "is", "are",
+    "was", "were", "be", "it", "i", "im", "me", "you", "we", "they", "he", "she", "him", "them",
+    "us", "so", "very", "just", "really", "please", "some", "any", "but",
+];
+
+/// Pronouns and the like: a forgiving name never spans them ("I love you
+/// heart emoji" -> "I love you ❤️").
+const EMOJI_PHRASE_BREAKERS: &[&str] = &[
+    "is", "are", "was", "were", "be", "it", "i", "im", "me", "you", "we", "they", "he", "she",
+    "him", "them", "us", "so", "very", "just", "really", "please", "but", "or",
+];
+
+/// Filler that need not match, but counts as a tie-breaker when it does
+/// ("sticking tongue out" prefers 😛 `stuck_out_tongue` over 👅).
+const EMOJI_SOFT_WORDS: &[&str] = &["face", "sticking", "stuck", "out", "little", "big", "small"];
+
+/// Words before "emoji" that make it a noun, not a name ("that emoji").
+const EMOJI_NOUN_MARKERS: &[&str] = &[
+    "a",
+    "an",
+    "the",
+    "that",
+    "this",
+    "these",
+    "those",
+    "my",
+    "your",
+    "his",
+    "her",
+    "their",
+    "our",
+    "its",
+    "which",
+    "what",
+    "any",
+    "some",
+    "every",
+    "each",
+    "no",
+    "another",
+    "new",
+    "favorite",
+    "favourite",
+    "own",
+    "best",
+    "same",
+    "other",
+    "first",
+    "last",
+];
+
+const EMOJI_MAX_FUZZY_WORDS: usize = 6;
+const EMOJI_MIN_SCORE: f32 = 0.5;
+const EMOJI_KEYWORD_WEIGHT: f32 = 0.85;
+const EMOJI_SOFT_BONUS: f32 = 0.15;
 
 /// Lowercase, `-`/`_`/`:`/`,` as spaces, apostrophes and quotes dropped,
 /// whitespace collapsed.
@@ -146,15 +264,97 @@ fn emoji_key(s: &str) -> String {
         .to_lowercase()
 }
 
+/// Small suffix stemmer, applied identically to spoken and indexed words:
+/// smiling/smile/smiled -> smil, eyes/eye -> ey, clapping -> clap, cries -> cry.
+fn emoji_stem(word: &str) -> String {
+    let irregular = match word {
+        "stuck" => Some("stick"),
+        "teeth" => Some("tooth"),
+        "feet" => Some("foot"),
+        "men" => Some("man"),
+        "women" => Some("woman"),
+        "people" => Some("person"),
+        _ => None,
+    };
+    if let Some(stem) = irregular {
+        return stem.to_string();
+    }
+    let mut s = word.to_string();
+    if let Some(base) = s.strip_suffix("ies").or_else(|| s.strip_suffix("ied")) {
+        if base.len() >= 2 {
+            s = format!("{base}y");
+        }
+    } else if let Some(base) = s.strip_suffix("ing").or_else(|| s.strip_suffix("ed")) {
+        if base.len() >= 3 {
+            s = base.to_string();
+        }
+    } else if s.len() > 3
+        && s.ends_with('s')
+        && !s.ends_with("ss")
+        && !s.ends_with("us")
+        && !s.ends_with("is")
+    {
+        s.pop();
+    }
+    if s.len() >= 3 && s.ends_with('e') {
+        s.pop();
+    }
+    let b = s.as_bytes();
+    if b.len() > 3 && b[b.len() - 1] == b[b.len() - 2] && !b"aeiou".contains(&b[b.len() - 1]) {
+        s.pop();
+    }
+    s
+}
+
+fn is_stopword(word: &str) -> bool {
+    EMOJI_STOPWORDS.contains(&word)
+}
+
+fn is_soft(word: &str) -> bool {
+    EMOJI_SOFT_WORDS.contains(&word)
+}
+
+/// A name or keyword: stems of its non-stopword, non-soft words.
+type Phrase = Vec<String>;
+
+fn phrase_stems(name: &str) -> Phrase {
+    let mut stems: Vec<String> = emoji_key(name)
+        .split(' ')
+        .filter(|w| !w.is_empty() && !is_stopword(w) && !is_soft(w))
+        .map(emoji_stem)
+        .collect();
+    stems.sort();
+    stems.dedup();
+    stems
+}
+
+struct EmojiEntry {
+    emoji: &'static emojis::Emoji,
+    names: Vec<Phrase>,
+    keywords: Vec<Phrase>,
+    /// Stems of every word in any name or keyword, soft words included.
+    terms: std::collections::HashSet<String>,
+    /// Stems of every word in any name (not keywords), soft words included.
+    name_terms: std::collections::HashSet<String>,
+    rank: usize,
+}
+
 struct EmojiIndex {
     by_name: std::collections::HashMap<String, &'static str>,
     max_words: usize,
+    entries: Vec<EmojiEntry>,
+    by_term: std::collections::HashMap<String, Vec<usize>>,
+}
+
+fn strip_vs16(s: &str) -> String {
+    s.replace('\u{fe0f}', "")
 }
 
 fn emoji_index() -> &'static EmojiIndex {
     static INDEX: std::sync::OnceLock<EmojiIndex> = std::sync::OnceLock::new();
     INDEX.get_or_init(|| {
-        let mut by_name = std::collections::HashMap::new();
+        use std::collections::{HashMap, HashSet};
+        let mut by_name = HashMap::new();
         let all = || {
             emojis::iter().flat_map(|e| {
                 let tones: Vec<&'static emojis::Emoji> =
@@ -162,7 +362,24 @@ fn emoji_index() -> &'static EmojiIndex {
                 std::iter::once(e).chain(tones.into_iter().skip(1))
             })
         };
-        // CLDR names take priority over shortcodes, shortcodes over aliases.
+        // emoji (without U+FE0F) -> (shortcode names, keywords) from the table.
+        let mut table: HashMap<String, (Vec<&'static str>, Vec<&'static str>)> = HashMap::new();
+        for line in EMOJI_KEYWORDS.lines().filter(|l| !l.starts_with('#')) {
+            let mut cols = line.split('\t');
+            let (Some(e), Some(names), Some(keywords)) = (cols.next(), cols.next(), cols.next())
+            else {
+                continue;
+            };
+            let split = |s: &'static str| -> Vec<&'static str> {
+                s.split('|').filter(|p| !p.is_empty()).collect()
+            };
+            table.insert(strip_vs16(e), (split(names), split(keywords)));
+        }
+
+        // Exact names: aliases > CLDR names > shortcodes.
+        for (alias, emoji) in EMOJI_ALIASES {
+            by_name.entry(emoji_key(alias)).or_insert(*emoji);
+        }
         for e in all() {
             by_name.entry(emoji_key(e.name())).or_insert(e.as_str());
             // "flag: Japan" is also "Japan flag".
@@ -177,15 +394,84 @@ fn emoji_index() -> &'static EmojiIndex {
                 by_name.entry(emoji_key(code)).or_insert(e.as_str());
             }
         }
-        for (alias, emoji) in EMOJI_ALIASES {
-            by_name.entry(emoji_key(alias)).or_insert(emoji);
+        for e in emojis::iter() {
+            if let Some((names, _)) = table.get(&strip_vs16(e.as_str())) {
+                for name in names {
+                    by_name.entry(emoji_key(name)).or_insert(e.as_str());
+                }
+            }
         }
         let max_words = by_name
             .keys()
             .map(|k| k.split(' ').count())
             .max()
             .unwrap_or(1);
-        EmojiIndex { by_name, max_words }
+
+        // Forgiving index over base emoji (skin tones are applied afterwards).
+        let mut entries = Vec::new();
+        let mut by_term: HashMap<String, Vec<usize>> = HashMap::new();
+        for (order, e) in emojis::iter().enumerate() {
+            let mut names: Vec<&str> = vec![e.name()];
+            names.extend(e.shortcodes());
+            names.extend(
+                EMOJI_ALIASES
+                    .iter()
+                    .filter(|(_, a)| strip_vs16(a) == strip_vs16(e.as_str()))
+                    .map(|(alias, _)| *alias),
+            );
+            let (extra_names, keywords) = table
+                .get(&strip_vs16(e.as_str()))
+                .cloned()
+                .unwrap_or_default();
+            names.extend(extra_names);
+
+            let stems_of = |list: &[&str]| -> HashSet<String> {
+                list.iter()
+                    .flat_map(|p| {
+                        emoji_key(p)
+                            .split(' ')
+                            .filter(|w| !w.is_empty() && !is_stopword(w))
+                            .map(emoji_stem)
+                            .collect::<Vec<_>>()
+                    })
+                    .collect()
+            };
+            let name_terms = stems_of(&names);
+            let mut terms = stems_of(&keywords);
+            terms.extend(name_terms.iter().cloned());
+            let to_phrases = |list: &[&str]| -> Vec<Phrase> {
+                let mut out: Vec<Phrase> = list
+                    .iter()
+                    .map(|p| phrase_stems(p))
+                    .filter(|p| !p.is_empty())
+                    .collect();
+                out.sort();
+                out.dedup();
+                out
+            };
+            let rank = EMOJI_BY_POPULARITY
+                .iter()
+                .position(|p| strip_vs16(p) == strip_vs16(e.as_str()))
+                .unwrap_or(EMOJI_BY_POPULARITY.len() + order);
+            let id = entries.len();
+            for term in &terms {
+                by_term.entry(term.clone()).or_default().push(id);
+            }
+            entries.push(EmojiEntry {
+                emoji: e,
+                names: to_phrases(&names),
+                keywords: to_phrases(&keywords),
+                terms,
+                name_terms,
+                rank,
+            });
+        }
+        EmojiIndex {
+            by_name,
+            max_words,
+            entries,
+            by_term,
+        }
     })
 }
 
@@ -212,28 +498,181 @@ fn match_skin_tone(words: &[String], j: usize) -> Option<(emojis::SkinTone, usiz
     None
 }
 
-/// `<name words> emoji [skin tone]` starting at `i`: the emoji and words used.
-fn match_emoji(words: &[String], i: usize) -> Option<(String, usize)> {
+fn jaccard(query: &[String], phrase: &[String]) -> f32 {
+    let inter = phrase.iter().filter(|p| query.contains(p)).count();
+    inter as f32 / (query.len() + phrase.len() - inter) as f32
+}
+
+/// Best emoji for spoken name words (already lowercased, punctuation-free),
+/// and whether the first word is part of one of its names (vs. a keyword).
+fn fuzzy_emoji(name_words: &[String]) -> Option<(&'static emojis::Emoji, bool)> {
     let index = emoji_index();
-    for n in (1..=index.max_words).rev() {
-        if words.get(i + n).map(String::as_str) != Some(EMOJI_WORD) {
+    let spoken: Vec<String> = name_words
+        .iter()
+        .flat_map(|w| {
+            emoji_key(w)
+                .split(' ')
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .filter(|w| !w.is_empty())
+        .collect();
+    // The first spoken word must carry meaning; leading filler stays text.
+    let first = spoken.first()?;
+    if is_stopword(first)
+        || spoken
+            .iter()
+            .any(|w| EMOJI_PHRASE_BREAKERS.contains(&w.as_str()))
+    {
+        return None;
+    }
+    let words: Vec<&String> = spoken.iter().filter(|w| !is_stopword(w)).collect();
+    let mut core: Vec<String> = words
+        .iter()
+        .filter(|w| !is_soft(w))
+        .map(|w| emoji_stem(w))
+        .collect();
+    core.sort();
+    core.dedup();
+    let soft: Vec<String> = words
+        .iter()
+        .filter(|w| is_soft(w))
+        .map(|w| emoji_stem(w))
+        .collect();
+    if core.is_empty() {
+        return None;
+    }
+
+    // Every meaningful word must appear somewhere in the emoji's names/keywords.
+    let mut candidates: Option<Vec<usize>> = None;
+    for stem in &core {
+        let ids = index.by_term.get(stem)?;
+        candidates = Some(match candidates {
+            None => ids.clone(),
+            Some(prev) => prev.into_iter().filter(|id| ids.contains(id)).collect(),
+        });
+    }
+
+    let mut best: Option<(f32, &EmojiEntry)> = None;
+    for id in candidates? {
+        let entry = &index.entries[id];
+        let base = entry
+            .names
+            .iter()
+            .map(|p| jaccard(&core, p))
+            .chain(
+                entry
+                    .keywords
+                    .iter()
+                    .map(|p| EMOJI_KEYWORD_WEIGHT * jaccard(&core, p)),
+            )
+            .fold(0.0_f32, f32::max);
+        if base < EMOJI_MIN_SCORE {
             continue;
         }
-        let Some(emoji) = joined_key(words, i, n).and_then(|k| index.by_name.get(&k).copied())
-        else {
-            continue;
+        let bonus = soft.iter().filter(|s| entry.terms.contains(*s)).count() as f32;
+        let score = base + EMOJI_SOFT_BONUS * bonus;
+        let better = match best {
+            None => true,
+            Some((s, b)) => {
+                score > s + f32::EPSILON
+                    || ((score - s).abs() <= f32::EPSILON && entry.rank < b.rank)
+            }
         };
-        let mut used = n + 1;
-        let mut out = emoji.to_string();
-        if let Some((tone, tone_words)) = match_skin_tone(words, i + used) {
-            if let Some(toned) = emojis::get(emoji).and_then(|e| e.with_skin_tone(tone)) {
-                out = toned.as_str().to_string();
-                used += tone_words;
+        if better {
+            best = Some((score, entry));
+        }
+    }
+    let (_, entry) = best?;
+    // Leading filler ("big smile") belongs to the name.
+    let first_named = is_soft(first) || entry.name_terms.contains(&emoji_stem(first));
+    Some((entry.emoji, first_named))
+}
+
+/// The emoji, optionally re-toned; falls back to the plain emoji when the tone
+/// does not apply.
+fn with_tone(emoji: &str, tone: Option<emojis::SkinTone>) -> (String, bool) {
+    if let Some(tone) = tone {
+        if let Some(toned) = emojis::get(emoji).and_then(|e| e.with_skin_tone(tone)) {
+            return (toned.as_str().to_string(), true);
+        }
+    }
+    (emoji.to_string(), false)
+}
+
+/// `<name words> emoji [skin tone]` starting at `i`: the emoji and words used.
+fn match_emoji(words: &[String], tokens: &[&str], i: usize) -> Option<(String, usize)> {
+    let index = emoji_index();
+    if words[i] == EMOJI_WORD || words[i] == "emojis" {
+        return None;
+    }
+    // The nearest "emoji" after `i`; the name must not contain another one.
+    let e = (i + 1..words.len().min(i + index.max_words + 1))
+        .find(|&j| words[j] == EMOJI_WORD || words[j] == "emojis")?;
+    if words[e] != EMOJI_WORD {
+        return None;
+    }
+    let n = e - i;
+    let after_tone = match_skin_tone(words, e + 1);
+    let finish = |emoji: &str, used: usize| {
+        let (out, toned) = with_tone(emoji, after_tone.map(|t| t.0));
+        let extra = if toned {
+            after_tone.map_or(0, |t| t.1)
+        } else {
+            0
+        };
+        (out, used + extra)
+    };
+
+    if let Some(emoji) = joined_key(words, i, n).and_then(|k| index.by_name.get(&k).copied()) {
+        return Some(finish(emoji, n + 1));
+    }
+
+    // Forgiving match: only where "emoji" ends the phrase.
+    let ends_phrase = e + 1 == words.len()
+        || tokens[e].ends_with(PUNCTUATION)
+        || after_tone.is_some()
+        || match_at(words, e + 1).is_some();
+    if !ends_phrase || n > EMOJI_MAX_FUZZY_WORDS {
+        return None;
+    }
+    let before = emoji_key(&words[e - 1]);
+    if EMOJI_NOUN_MARKERS.contains(&before.as_str()) || is_stopword(&before) {
+        return None;
+    }
+    // The name must not span a sentence or clause break.
+    if tokens[i..e - 1].iter().any(|t| t.ends_with(PUNCTUATION)) {
+        return None;
+    }
+    // "<name> <tone> skin tone emoji".
+    let mut name_end = e;
+    let mut tone = None;
+    for t in (2..=4).rev() {
+        if name_end >= i + 1 + t {
+            if let Some((found, used)) = match_skin_tone(words, e - t) {
+                if used == t {
+                    tone = Some(found);
+                    name_end = e - t;
+                    break;
+                }
             }
         }
-        return Some((out, used));
     }
-    None
+    let (emoji, first_named) = fuzzy_emoji(&words[i..name_end])?;
+    let result = match tone {
+        Some(_) => (with_tone(emoji.as_str(), tone).0, n + 1),
+        None => finish(emoji.as_str(), n + 1),
+    };
+    // A leading word that is only a keyword ("hilarious" for 😂) stays text
+    // when the rest of the phrase gives the same emoji.
+    if !first_named {
+        if let Some((rest, _)) = match_emoji(words, tokens, i + 1) {
+            if strip_vs16(&rest) == strip_vs16(&result.0) {
+                return None;
+            }
+        }
+    }
+    Some(result)
 }
 
 /// `commands`: spoken punctuation/breaks/edits (`voice_commands_enabled`);
@@ -249,7 +688,7 @@ pub fn apply_voice_commands(text: &str, commands: bool, emoji: bool) -> VoiceCom
     let mut i = 0;
 
     while i < tokens.len() {
-        if let Some((emoji_str, len)) = emoji.then(|| match_emoji(&words, i)).flatten() {
+        if let Some((emoji_str, len)) = emoji.then(|| match_emoji(&words, &tokens, i)).flatten() {
             matched = true;
             // Keep sentence punctuation the model put after the spoken name.
             let last = tokens[i + len - 1];
@@ -444,6 +883,132 @@ mod tests {
         let index = emoji_index();
         assert!(index.by_name.len() > 3000, "{}", index.by_name.len());
         assert_eq!(index.by_name.get("thumbs up medium skin tone"), Some(&"👍🏽"));
+    }
+
+    #[test]
+    fn spoken_emoji_forgiving() {
+        for (text, want) in [
+            ("sticking tongue out emoji", "😛"),
+            ("Sticking tongue out emoji.", "😛."),
+            ("tongue out emoji", "😛"),
+            ("tongue out wink emoji", "😜"),
+            ("winking tongue out emoji", "😜"),
+            ("laughing crying emoji", "😂"),
+            ("crying laughing emoji", "😂"),
+            ("laughing emoji", "😂"),
+            ("thumbs up emoji", "👍"),
+            ("Thumbs up, emoji!", "👍!"),
+            ("smiley emoji", "😃"),
+            ("smiley face emoji", "😃"),
+            ("heart eyes emoji", "😍"),
+            ("red heart emoji", "❤️"),
+            ("fire emoji", "🔥"),
+            ("party emoji", "🥳"),
+            ("eye roll emoji", "🙄"),
+            ("eye-roll emoji", "🙄"),
+            ("eyes rolling emoji", "🙄"),
+            ("skull emoji", "💀"),
+            ("praying hands emoji", "🙏"),
+            ("clapping emoji", "👏"),
+            ("clapping hands emoji", "👏"),
+            ("hundred emoji", "💯"),
+            ("100 emoji", "💯"),
+            ("shrug emoji", "🤷"),
+            ("shrugging emoji", "🤷"),
+            ("facepalm emoji", "🤦"),
+            ("sad face emoji", "😢"),
+            ("angry emoji", "😠"),
+            ("angry face emoji", "😠"),
+            ("wink emoji", "😉"),
+            ("winking face emoji", "😉"),
+            ("kiss emoji", "😘"),
+            ("thinking emoji", "🤔"),
+            ("thinking face emoji", "🤔"),
+            ("wheelchair emoji", "♿"),
+            ("heart on fire emoji", "❤️‍🔥"),
+            ("pleading emoji", "🥺"),
+            ("upside down emoji", "🙃"),
+            ("sweat smile emoji", "😅"),
+            ("blushing emoji", "😊"),
+            ("saluting emoji", "🫡"),
+            ("melting face emoji", "🫠"),
+            ("mind blown emoji", "🤯"),
+            ("sunglasses face emoji", "😎"),
+            ("cool emoji", "😎"),
+            ("big smile emoji", "😄"),
+            ("ghost emoji", "👻"),
+            ("throwing up emoji", "🤮"),
+            ("power wheelchair emoji", "🧑‍🦼"),
+            ("motorized wheelchair emoji", "🦼"),
+            ("person in wheelchair emoji", "🧑‍🦼"),
+            ("winking tongue emoji", "😜"),
+            ("loudly crying emoji", "😭"),
+            ("exploding head emoji", "🤯"),
+            ("fingers crossed emoji", "🤞"),
+            ("raised hands emoji", "🙌"),
+            ("rolling on the floor laughing emoji", "🤣"),
+        ] {
+            assert_eq!(run(text), want, "{text}");
+        }
+    }
+
+    #[test]
+    fn spoken_emoji_in_sentence() {
+        // Josh's real dictation (Parakeet raw, Oct 26 2026).
+        assert_eq!(
+            run("Some of the it popped up on my screen I'm trying the emojis sticking tongue out emoji"),
+            "Some of the it popped up on my screen I'm trying the emojis 😛"
+        );
+        assert_eq!(
+            run("I'm trying the sticking tongue out emoji."),
+            "I'm trying the 😛."
+        );
+        assert_eq!(
+            run("that's hilarious laughing crying emoji"),
+            "that's hilarious 😂"
+        );
+        assert_eq!(run("see you soon. Waving hand emoji"), "see you soon. 👋");
+        assert_eq!(
+            run("great job clapping emoji dark skin tone"),
+            "great job 👏🏿"
+        );
+        assert_eq!(run("so funny dying laughing emoji"), "so funny dying 😂");
+        assert_eq!(run("gross throwing up emoji"), "gross 🤮");
+        assert_eq!(run("tongue out wink emoji new line ok"), "😜\nOk");
+    }
+
+    #[test]
+    fn forgiving_emoji_leaves_speech_alone() {
+        for text in [
+            "my heart is on fire",
+            "I sent you an emoji",
+            "I love that emoji",
+            "what is your favorite emoji",
+            "the emoji was cute",
+            "unknown thing emoji",
+            "I'm trying the emojis",
+            "send it to me emoji",
+        ] {
+            assert_eq!(run(text), text, "{text}");
+        }
+    }
+
+    #[test]
+    fn emoji_stemmer() {
+        for (a, b) in [
+            ("smiling", "smile"),
+            ("smiled", "smile"),
+            ("eyes", "eye"),
+            ("clapping", "clap"),
+            ("cries", "cry"),
+            ("rolling", "roll"),
+            ("kissing", "kiss"),
+            ("stuck", "sticking"),
+            ("glasses", "glass"),
+        ] {
+            assert_eq!(emoji_stem(a), emoji_stem(b), "{a} / {b}");
+        }
+        assert_eq!(emoji_stem("red"), "red");
     }
 
     #[test]
