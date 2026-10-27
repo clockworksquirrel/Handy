@@ -796,12 +796,27 @@ fn should_send_auto_submit(auto_submit: bool, paste_method: PasteMethod) -> bool
 
 /// Pastes `text` into the focused app. Call from a worker thread, never the main
 /// thread: it sleeps between steps (input injection hops via `with_enigo`).
-pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
+///
+/// `force_submit` sends the auto-submit key even when the auto-submit setting is
+/// off (the "press enter" voice command). Empty text skips the paste itself, so
+/// a bare "press enter" only submits.
+pub fn paste(text: String, app_handle: AppHandle, force_submit: bool) -> Result<(), String> {
     let _paste = PASTE_LOCK.lock().unwrap_or_else(PoisonError::into_inner);
     let settings = get_settings(&app_handle);
     let paste_method = settings.paste_method;
     let paste_delay_ms = settings.paste_delay_ms;
     let paste_delay_after_ms = settings.paste_delay_after_ms;
+    let auto_submit = settings.auto_submit || force_submit;
+
+    if text.is_empty() {
+        if should_send_auto_submit(auto_submit, paste_method) {
+            let auto_submit_key = settings.auto_submit_key;
+            with_enigo(&app_handle, move |enigo| {
+                send_return_key(enigo, auto_submit_key)
+            })?;
+        }
+        return Ok(());
+    }
 
     // Append trailing space if setting is enabled
     let text = if settings.append_trailing_space {
@@ -839,7 +854,7 @@ pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
                 // Runs entirely on the main thread, as it requires.
                 let (text, app) = (text.clone(), app_handle.clone());
                 let (auto_submit, auto_submit_key, clipboard_handling) = (
-                    settings.auto_submit,
+                    auto_submit,
                     settings.auto_submit_key,
                     settings.clipboard_handling,
                 );
@@ -879,7 +894,7 @@ pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
         }
     }
 
-    if should_send_auto_submit(settings.auto_submit, paste_method) {
+    if should_send_auto_submit(auto_submit, paste_method) {
         std::thread::sleep(Duration::from_millis(50));
         let auto_submit_key = settings.auto_submit_key;
         if let Err(error) = with_enigo(&app_handle, move |enigo| {

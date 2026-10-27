@@ -27,6 +27,7 @@ mod transcription_coordinator;
 mod tray;
 mod tray_i18n;
 mod utils;
+mod voice_commands;
 
 pub use cli::CliArgs;
 #[cfg(debug_assertions)]
@@ -705,6 +706,7 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_long_form_chunking_setting,
             shortcut::change_vad_backend_setting,
             shortcut::change_filler_word_removal_enabled_setting,
+            shortcut::change_voice_commands_enabled_setting,
             shortcut::change_chinese_script_setting,
             shortcut::change_app_language_setting,
             shortcut::change_update_checks_setting,

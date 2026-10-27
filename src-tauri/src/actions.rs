@@ -405,19 +405,32 @@ pub(crate) struct ProcessedTranscription {
     pub final_text: String,
     pub post_processed_text: Option<String>,
     pub post_process_prompt: Option<String>,
+    /// A trailing "press enter" voice command asked to submit after pasting.
+    pub submit: bool,
 }
 
+/// `dictation` enables spoken voice commands (when on in settings); file
+/// transcriptions pass false so recorded speech is never rewritten as commands.
 pub(crate) async fn process_transcription_output(
     app: &AppHandle,
     transcription: &str,
     post_process: bool,
+    dictation: bool,
 ) -> ProcessedTranscription {
     let settings = get_settings(app);
     let mut final_text = transcription.to_string();
     let mut post_processed_text: Option<String> = None;
     let mut post_process_prompt: Option<String> = None;
+    let mut submit = false;
 
-    if post_process {
+    // Before post-processing, so the LLM sees the intended punctuation/breaks.
+    if dictation && settings.voice_commands_enabled {
+        let output = crate::voice_commands::apply_voice_commands(&final_text);
+        final_text = output.text;
+        submit = output.submit;
+    }
+
+    if post_process && !(submit && final_text.is_empty()) {
         if let Some(processed_text) = post_process_transcription(&settings, &final_text).await {
             post_processed_text = Some(processed_text.clone());
             final_text = processed_text;
@@ -438,6 +451,7 @@ pub(crate) async fn process_transcription_output(
         final_text,
         post_processed_text,
         post_process_prompt,
+        submit,
     }
 }
 
@@ -760,7 +774,12 @@ impl ShortcutAction for TranscribeAction {
                                 }
                             }
                             let Some(processed) = complete_unless_cancelled(
-                                process_transcription_output(&ah, &transcription, post_process),
+                                process_transcription_output(
+                                    &ah,
+                                    &transcription,
+                                    post_process,
+                                    true,
+                                ),
                                 || rm.was_cancelled_since(cancel_generation),
                             )
                             .await
@@ -791,7 +810,7 @@ impl ShortcutAction for TranscribeAction {
                                 }
                             }
 
-                            if processed.final_text.is_empty() {
+                            if processed.final_text.is_empty() && !processed.submit {
                                 utils::hide_recording_overlay(&ah);
                                 set_tray_state(&ah, TrayIconState::Idle);
                                 emit_transcription_complete(
@@ -804,6 +823,7 @@ impl ShortcutAction for TranscribeAction {
                                 let ah_clone = ah.clone();
                                 let paste_time = Instant::now();
                                 let final_text = processed.final_text;
+                                let submit = processed.submit;
                                 let rm_for_paste = Arc::clone(&rm);
                                 // Taken before the paste thread exists, and so
                                 // before the next session can start.
@@ -822,21 +842,24 @@ impl ShortcutAction for TranscribeAction {
                                             return;
                                         }
 
-                                        let outcome =
-                                            match utils::paste(final_text, ah_clone.clone()) {
-                                                Ok(()) => {
-                                                    debug!(
-                                                        "Text pasted successfully in {:?}",
-                                                        paste_time.elapsed()
-                                                    );
-                                                    TranscriptionOutcome::Typed
-                                                }
-                                                Err(e) => {
-                                                    error!("Failed to paste transcription: {}", e);
-                                                    let _ = ah_clone.emit("paste-error", ());
-                                                    TranscriptionOutcome::Failed
-                                                }
-                                            };
+                                        let outcome = match utils::paste(
+                                            final_text,
+                                            ah_clone.clone(),
+                                            submit,
+                                        ) {
+                                            Ok(()) => {
+                                                debug!(
+                                                    "Text pasted successfully in {:?}",
+                                                    paste_time.elapsed()
+                                                );
+                                                TranscriptionOutcome::Typed
+                                            }
+                                            Err(e) => {
+                                                error!("Failed to paste transcription: {}", e);
+                                                let _ = ah_clone.emit("paste-error", ());
+                                                TranscriptionOutcome::Failed
+                                            }
+                                        };
                                         // A new session may have started while
                                         // this paste ran; the UI is now its.
                                         if RECORDING_SESSION.load(Ordering::SeqCst) == session {

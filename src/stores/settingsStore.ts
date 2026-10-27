@@ -191,6 +191,8 @@ const settingUpdaters: {
   },
   filler_word_removal_enabled: (value) =>
     commands.changeFillerWordRemovalEnabledSetting(value as boolean),
+  voice_commands_enabled: (value) =>
+    commands.changeVoiceCommandsEnabledSetting(value as boolean),
   chinese_script: (value) =>
     commands.changeChineseScriptSetting(value as ChineseScript),
   show_tray_icon: (value) =>

@@ -591,6 +591,10 @@
           "earshot": "Earshot"
         }
       },
+      "voiceCommands": {
+        "title": "Voice Commands",
+        "description": "Say \"new line\", \"new paragraph\", \"period\", \"comma\", \"question mark\", \"exclamation point\", \"colon\", \"semicolon\", \"scratch that\" (deletes the last sentence), or end with \"press enter\" to submit. English only."
+      },
       "fillerWordRemoval": {
         "title": "إزالة كلمات الحشو",
         "description": "يزيل كلمات التردد الشائعة من النصوص. عطّل هذا الخيار للاحتفاظ بها."
