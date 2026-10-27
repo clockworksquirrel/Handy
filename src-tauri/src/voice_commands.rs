@@ -600,20 +600,80 @@ fn with_tone(emoji: &str, tone: Option<emojis::SkinTone>) -> (String, bool) {
     (emoji.to_string(), false)
 }
 
+/// Mishearings of "emoji" that are not English words, so accepting them as the
+/// trigger cannot rewrite normal speech. Only accepted where the trigger ends
+/// the phrase right after a recognised emoji name. Deliberately absent:
+/// "emergency" and "India", which speech models also produce for "emoji" but
+/// which are common words ("we had a family emergency" must stay text).
+const EMOJI_TRIGGER_VARIANTS: &[&str] = &[
+    "emojy", "emojie", "emoje", "emojii", "emogi", "emogee", "emoji's", "imoji", "imogi", "imojis",
+];
+
+/// Two-word splits of "emoji" ("a moji", "emo g"), under the same rule.
+const EMOJI_TRIGGER_SPLITS: &[(&str, &str)] = &[
+    ("a", "moji"),
+    ("e", "moji"),
+    ("emo", "g"),
+    ("emo", "gee"),
+    ("emo", "ji"),
+    ("emo", "jee"),
+    ("imo", "g"),
+    ("imo", "ji"),
+];
+
+/// A spoken trigger starting at `j`: its length in words, and whether it is
+/// the word "emoji" itself.
+fn trigger_at(words: &[String], j: usize) -> Option<(usize, bool)> {
+    let w = words.get(j)?.as_str();
+    if w == EMOJI_WORD {
+        return Some((1, true));
+    }
+    if EMOJI_TRIGGER_VARIANTS.contains(&w) {
+        return Some((1, false));
+    }
+    let next = words.get(j + 1)?.as_str();
+    EMOJI_TRIGGER_SPLITS
+        .iter()
+        .any(|&(a, b)| w == a && next == b)
+        .then_some((2, false))
+}
+
+/// Words a clipped or repeated start of the trigger leaves right before it
+/// ("party emo emoji", "tongue out a mo emoji"): how many of `words[i..e]` to
+/// fold into the trigger. At least one name word always remains.
+fn trigger_fragment_before(words: &[String], i: usize, e: usize) -> usize {
+    let w = |k: usize| words[k].as_str();
+    if e >= i + 3 && matches!((w(e - 2), w(e - 1)), ("a", "mo") | ("e", "mo")) {
+        return 2;
+    }
+    if e >= i + 2 && matches!(w(e - 1), "emo" | "imo" | "emoj") {
+        return 1;
+    }
+    0
+}
+
 /// `<name words> emoji [skin tone]` starting at `i`: the emoji and words used.
 fn match_emoji(words: &[String], tokens: &[&str], i: usize) -> Option<(String, usize)> {
     let index = emoji_index();
-    if words[i] == EMOJI_WORD || words[i] == "emojis" {
+    if words[i] == "emojis" || trigger_at(words, i).is_some() {
         return None;
     }
-    // The nearest "emoji" after `i`; the name must not contain another one.
-    let e = (i + 1..words.len().min(i + index.max_words + 1))
-        .find(|&j| words[j] == EMOJI_WORD || words[j] == "emojis")?;
-    if words[e] != EMOJI_WORD {
-        return None;
-    }
+    // The nearest trigger after `i`; the name must not contain another one.
+    let (t, trigger) = (i + 1..words.len().min(i + index.max_words + 1)).find_map(|j| {
+        if words[j] == "emojis" {
+            Some((j, None))
+        } else {
+            trigger_at(words, j).map(|found| (j, Some(found)))
+        }
+    })?;
+    let (trigger_len, exact) = trigger?;
+    let fragment = trigger_fragment_before(words, i, t);
+    // The name is words[i..e]; everything from e to `after` is the trigger.
+    let e = t - fragment;
+    let after = t + trigger_len;
     let n = e - i;
-    let after_tone = match_skin_tone(words, e + 1);
+    let used = after - i;
+    let after_tone = match_skin_tone(words, after);
     let finish = |emoji: &str, used: usize| {
         let (out, toned) = with_tone(emoji, after_tone.map(|t| t.0));
         let extra = if toned {
@@ -624,15 +684,32 @@ fn match_emoji(words: &[String], tokens: &[&str], i: usize) -> Option<(String, u
         (out, used + extra)
     };
 
-    if let Some(emoji) = joined_key(words, i, n).and_then(|k| index.by_name.get(&k).copied()) {
-        return Some(finish(emoji, n + 1));
+    let ends_phrase = after == words.len()
+        || tokens[after - 1].ends_with(PUNCTUATION)
+        || after_tone.is_some()
+        || match_at(words, after).is_some();
+    let plain_trigger = exact && fragment == 0;
+    if !plain_trigger {
+        // A misheard trigger only counts at the end of a phrase, in one piece,
+        // after a name (not "a"/"the"/"my" ...).
+        if !ends_phrase
+            || tokens[e..after - 1]
+                .iter()
+                .any(|t| t.ends_with(PUNCTUATION))
+        {
+            return None;
+        }
+        let before = emoji_key(&words[e - 1]);
+        if EMOJI_NOUN_MARKERS.contains(&before.as_str()) || is_stopword(&before) {
+            return None;
+        }
     }
 
-    // Forgiving match: only where "emoji" ends the phrase.
-    let ends_phrase = e + 1 == words.len()
-        || tokens[e].ends_with(PUNCTUATION)
-        || after_tone.is_some()
-        || match_at(words, e + 1).is_some();
+    if let Some(emoji) = joined_key(words, i, n).and_then(|k| index.by_name.get(&k).copied()) {
+        return Some(finish(emoji, used));
+    }
+
+    // Forgiving match: only where the trigger ends the phrase.
     if !ends_phrase || n > EMOJI_MAX_FUZZY_WORDS {
         return None;
     }
@@ -660,8 +737,8 @@ fn match_emoji(words: &[String], tokens: &[&str], i: usize) -> Option<(String, u
     }
     let (emoji, first_named) = fuzzy_emoji(&words[i..name_end])?;
     let result = match tone {
-        Some(_) => (with_tone(emoji.as_str(), tone).0, n + 1),
-        None => finish(emoji.as_str(), n + 1),
+        Some(_) => (with_tone(emoji.as_str(), tone).0, used),
+        None => finish(emoji.as_str(), used),
     };
     // A leading word that is only a keyword ("hilarious" for 😂) stays text
     // when the rest of the phrase gives the same emoji.
@@ -975,6 +1052,11 @@ mod tests {
         assert_eq!(run("so funny dying laughing emoji"), "so funny dying 😂");
         assert_eq!(run("gross throwing up emoji"), "gross 🤮");
         assert_eq!(run("tongue out wink emoji new line ok"), "😜\nOk");
+        // Josh's 23:04 recording, as the full (batch) decode hears it.
+        assert_eq!(
+            run("Okay, I'm testing it now birthday party emoji"),
+            "Okay, I'm testing it now 🎉"
+        );
     }
 
     #[test]
@@ -988,6 +1070,47 @@ mod tests {
             "unknown thing emoji",
             "I'm trying the emojis",
             "send it to me emoji",
+        ] {
+            assert_eq!(run(text), text, "{text}");
+        }
+    }
+
+    #[test]
+    fn misheard_trigger_after_a_name() {
+        for (text, want) in [
+            ("party emojy", "🥳"),
+            ("fire a moji", "🔥"),
+            ("Fire, a moji.", "🔥."),
+            ("thumbs up emo g", "👍"),
+            ("red heart imoji.", "❤️."),
+            ("skull emoji's", "💀"),
+            ("thumbs up emojy medium skin tone", "👍🏽"),
+            // A clipped or repeated start of the word before it.
+            ("party emo emoji", "🥳"),
+            ("sticking tongue out a mo emoji", "😛"),
+            ("great job clapping emo emoji", "great job 👏"),
+        ] {
+            assert_eq!(run(text), want, "{text}");
+        }
+    }
+
+    #[test]
+    fn misheard_trigger_leaves_speech_alone() {
+        for text in [
+            // Common words a model may produce for "emoji" are never the trigger.
+            "We had a family emergency",
+            "there's a fire emergency.",
+            "Is this an emergency?",
+            "I'm going to India",
+            "birthday party emergency",
+            // Variants only count at the end of a phrase, after a name.
+            "the fire emojy was cute",
+            "I like emo music",
+            "my emo phase",
+            "the a moji",
+            "send me a moji",
+            // Josh's live-stream transcript (Oct 26 2026): no name before it.
+            "India still doesn't work took a mo emoji as emergency",
         ] {
             assert_eq!(run(text), text, "{text}");
         }
