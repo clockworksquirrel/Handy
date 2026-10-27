@@ -424,8 +424,12 @@ pub(crate) async fn process_transcription_output(
     let mut submit = false;
 
     // Before post-processing, so the LLM sees the intended punctuation/breaks.
-    if dictation && settings.voice_commands_enabled {
-        let output = crate::voice_commands::apply_voice_commands(&final_text);
+    if dictation && (settings.voice_commands_enabled || settings.voice_emoji_enabled) {
+        let output = crate::voice_commands::apply_voice_commands(
+            &final_text,
+            settings.voice_commands_enabled,
+            settings.voice_emoji_enabled,
+        );
         final_text = output.text;
         submit = output.submit;
     }

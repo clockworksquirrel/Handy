@@ -193,6 +193,8 @@ const settingUpdaters: {
     commands.changeFillerWordRemovalEnabledSetting(value as boolean),
   voice_commands_enabled: (value) =>
     commands.changeVoiceCommandsEnabledSetting(value as boolean),
+  voice_emoji_enabled: (value) =>
+    commands.changeVoiceEmojiEnabledSetting(value as boolean),
   chinese_script: (value) =>
     commands.changeChineseScriptSetting(value as ChineseScript),
   show_tray_icon: (value) =>

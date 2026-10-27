@@ -547,6 +547,10 @@ pub struct AppSettings {
     /// enter") to dictation before post-processing. See `voice_commands`.
     #[serde(default)]
     pub voice_commands_enabled: bool,
+    /// Insert emoji for "<name> emoji" in dictation (separate opt-in from
+    /// `voice_commands_enabled`). See `voice_commands`.
+    #[serde(default)]
+    pub voice_emoji_enabled: bool,
 }
 
 fn default_model() -> String {
@@ -1039,6 +1043,7 @@ pub fn get_default_settings() -> AppSettings {
         long_form_chunking: default_long_form_chunking(),
         overlay_style: default_overlay_style(),
         voice_commands_enabled: false,
+        voice_emoji_enabled: false,
     }
 }
 

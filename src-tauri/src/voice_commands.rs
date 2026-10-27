@@ -1,5 +1,6 @@
 //! Spoken dictation commands, applied to a finished dictation before optional
-//! post-processing (opt-in: `voice_commands_enabled`).
+//! post-processing (opt-in: `voice_commands_enabled`, and `voice_emoji_enabled`
+//! for "<name> emoji").
 //!
 //! Matching is whole-word, case-insensitive and ignores punctuation the model
 //! attached to the spoken words ("Comma," matches `comma`). A transcript with no
@@ -235,7 +236,9 @@ fn match_emoji(words: &[String], i: usize) -> Option<(String, usize)> {
     None
 }
 
-pub fn apply_voice_commands(text: &str) -> VoiceCommandOutput {
+/// `commands`: spoken punctuation/breaks/edits (`voice_commands_enabled`);
+/// `emoji`: "<name> emoji" (`voice_emoji_enabled`).
+pub fn apply_voice_commands(text: &str, commands: bool, emoji: bool) -> VoiceCommandOutput {
     let tokens: Vec<&str> = text.split_whitespace().collect();
     let words: Vec<String> = tokens.iter().map(|t| normalize(t)).collect();
 
@@ -246,7 +249,7 @@ pub fn apply_voice_commands(text: &str) -> VoiceCommandOutput {
     let mut i = 0;
 
     while i < tokens.len() {
-        if let Some((emoji, len)) = match_emoji(&words, i) {
+        if let Some((emoji_str, len)) = emoji.then(|| match_emoji(&words, i)).flatten() {
             matched = true;
             // Keep sentence punctuation the model put after the spoken name.
             let last = tokens[i + len - 1];
@@ -254,13 +257,13 @@ pub fn apply_voice_commands(text: &str) -> VoiceCommandOutput {
             if !out.is_empty() && !out.ends_with('\n') {
                 out.push(' ');
             }
-            out.push_str(&emoji);
+            out.push_str(&emoji_str);
             out.push_str(trailing);
             capitalize = trailing.ends_with(SENTENCE_END);
             i += len;
             continue;
         }
-        if let Some((command, len)) = match_at(&words, i) {
+        if let Some((command, len)) = commands.then(|| match_at(&words, i)).flatten() {
             matched = true;
             i += len;
             match command {
@@ -316,14 +319,14 @@ mod tests {
     use super::*;
 
     fn run(text: &str) -> String {
-        apply_voice_commands(text).text
+        apply_voice_commands(text, true, true).text
     }
 
     #[test]
     fn no_command_is_untouched() {
         let text = "  Hello there,  world.  ";
         assert_eq!(run(text), text);
-        assert!(!apply_voice_commands(text).submit);
+        assert!(!apply_voice_commands(text, true, true).submit);
     }
 
     #[test]
@@ -369,7 +372,7 @@ mod tests {
 
     #[test]
     fn press_enter_only_at_end() {
-        let out = apply_voice_commands("Ship it. Press enter.");
+        let out = apply_voice_commands("Ship it. Press enter.", true, true);
         assert_eq!(
             out,
             VoiceCommandOutput {
@@ -378,11 +381,11 @@ mod tests {
             }
         );
 
-        let out = apply_voice_commands("press enter to continue");
+        let out = apply_voice_commands("press enter to continue", true, true);
         assert_eq!(out.text, "press enter to continue");
         assert!(!out.submit);
 
-        let out = apply_voice_commands("Press enter.");
+        let out = apply_voice_commands("Press enter.", true, true);
         assert_eq!(
             out,
             VoiceCommandOutput {
@@ -441,5 +444,16 @@ mod tests {
         let index = emoji_index();
         assert!(index.by_name.len() > 3000, "{}", index.by_name.len());
         assert_eq!(index.by_name.get("thumbs up medium skin tone"), Some(&"👍🏽"));
+    }
+
+    #[test]
+    fn features_toggle_independently() {
+        let text = "hi comma heart emoji";
+        assert_eq!(
+            apply_voice_commands(text, true, false).text,
+            "hi, heart emoji"
+        );
+        assert_eq!(apply_voice_commands(text, false, true).text, "hi comma ❤️");
+        assert_eq!(apply_voice_commands(text, false, false).text, text);
     }
 }
