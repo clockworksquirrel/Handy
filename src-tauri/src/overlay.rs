@@ -493,6 +493,7 @@ fn show_overlay_state(app_handle: &AppHandle, state: &str) {
     if settings.overlay_style == OverlayStyle::None {
         return;
     }
+    OVERLAY_ACTIVE.store(state != IDLE_STATE, Ordering::SeqCst);
 
     // The rest queries monitors and the cursor and mutates window geometry. On
     // Linux the monitor/cursor lookups hit GDK/Xlib on the process's shared X11
@@ -588,6 +589,10 @@ fn show_overlay_state_on_main(app_handle: &AppHandle, state: &str) {
                 show_elapsed
             );
         }
+
+        // The idle pill is display-only: let clicks fall through to whatever is
+        // underneath so a persistent overlay never blocks the app below it.
+        let _ = overlay_window.set_ignore_cursor_events(state == IDLE_STATE);
 
         let _ = overlay_window.emit("show-overlay", state);
     }
@@ -687,6 +692,18 @@ static OVERLAY_SHOW_GENERATION: AtomicU64 = AtomicU64::new(0);
 
 /// Hides the recording overlay window with fade-out animation
 pub fn hide_recording_overlay(app_handle: &AppHandle) {
+    OVERLAY_ACTIVE.store(false, Ordering::SeqCst);
+    // With the overlay pinned, a finished session collapses to the idle pill
+    // instead of hiding. show_overlay_state re-checks overlay_style, so a style
+    // switched to None mid-session still ends hidden via sync_idle_overlay.
+    if idle_overlay_enabled(&settings::get_settings(app_handle)) {
+        show_overlay_state(app_handle, IDLE_STATE);
+        return;
+    }
+    hide_overlay_window(app_handle);
+}
+
+fn hide_overlay_window(app_handle: &AppHandle) {
     // Always hide the overlay regardless of settings - if setting was changed while recording,
     // we still want to hide it properly
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
@@ -706,6 +723,31 @@ pub fn hide_recording_overlay(app_handle: &AppHandle) {
             }
             let _ = window_clone.hide();
         });
+    }
+}
+
+/// Overlay UI state for the persistent idle pill (`overlay_always_visible`).
+const IDLE_STATE: &str = "idle";
+
+/// True while a recording/transcription session owns the overlay, so settings
+/// changes don't replace an in-flight session's overlay with the idle pill.
+static OVERLAY_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+fn idle_overlay_enabled(settings: &settings::AppSettings) -> bool {
+    settings.overlay_always_visible && settings.overlay_style != OverlayStyle::None
+}
+
+/// Shows or hides the idle pill to match current settings. No-op while a
+/// session is active; its end (`hide_recording_overlay`) settles the state.
+/// Called at startup and whenever overlay style/visibility settings change.
+pub fn sync_idle_overlay(app_handle: &AppHandle) {
+    if OVERLAY_ACTIVE.load(Ordering::SeqCst) {
+        return;
+    }
+    if idle_overlay_enabled(&settings::get_settings(app_handle)) {
+        show_overlay_state(app_handle, IDLE_STATE);
+    } else {
+        hide_overlay_window(app_handle);
     }
 }
 
@@ -769,6 +811,28 @@ pub fn emit_levels(app_handle: &AppHandle, levels: &[f32]) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn idle_overlay_requires_flag_and_visible_style() {
+        let mut settings = settings::get_default_settings();
+        settings.overlay_style = OverlayStyle::Minimal;
+        assert!(!idle_overlay_enabled(&settings));
+
+        settings.overlay_always_visible = true;
+        assert!(idle_overlay_enabled(&settings));
+        settings.overlay_style = OverlayStyle::Live;
+        assert!(idle_overlay_enabled(&settings));
+        settings.overlay_style = OverlayStyle::None;
+        assert!(!idle_overlay_enabled(&settings));
+    }
+
+    #[test]
+    fn idle_overlay_uses_compact_dimensions() {
+        assert_eq!(
+            overlay_dimensions(IDLE_STATE),
+            (OVERLAY_WIDTH, OVERLAY_HEIGHT)
+        );
+    }
 
     #[test]
     fn monitor_hit_test_uses_half_open_physical_bounds() {

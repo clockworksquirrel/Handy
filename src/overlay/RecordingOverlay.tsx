@@ -13,7 +13,12 @@ import i18n, { syncLanguageFromSettings } from "@/i18n";
 import type { ModelStateEvent } from "@/lib/types/events";
 import { getLanguageDirection } from "@/lib/utils/rtl";
 
-type OverlayState = "recording" | "streaming" | "transcribing" | "processing";
+type OverlayState =
+  | "idle"
+  | "recording"
+  | "streaming"
+  | "transcribing"
+  | "processing";
 
 // Number of reactive bars in the waveform (the simple, smoothed style shared by
 // every overlay form). Mic levels arrive as 16 FFT buckets; we take the first N.
@@ -63,6 +68,9 @@ const RecordingOverlay: React.FC = () => {
   const [overflowing, setOverflowing] = useState(false);
 
   const smoothedLevelsRef = useRef<number[]>(Array(16).fill(0));
+  // Set once the backend has driven the overlay, so the startup idle check
+  // below can't override a session that began before it resolved.
+  const receivedShowRef = useRef(false);
   // Live-text scroll-back: the text region "sticks" to the newest line while the
   // user is at the bottom; if they scroll up to read history, auto-follow pauses
   // until they scroll back down.
@@ -74,10 +82,15 @@ const RecordingOverlay: React.FC = () => {
     const setupEventListeners = async () => {
       const unlistenShow = await listen("show-overlay", async (event) => {
         const overlayState = event.payload as OverlayState;
+        receivedShowRef.current = true;
         // Reset synchronously before settings I/O. A fast microphone can emit
         // recording-ready while the awaits below are in flight; resetting after
         // them would overwrite that event and leave the overlay stuck arming.
-        if (overlayState === "recording" || overlayState === "streaming") {
+        if (
+          overlayState === "idle" ||
+          overlayState === "recording" ||
+          overlayState === "streaming"
+        ) {
           setCaptureReady(false);
           smoothedLevelsRef.current = Array(16).fill(0);
           setLevels(Array(WAVE_BARS).fill(0));
@@ -180,6 +193,21 @@ const RecordingOverlay: React.FC = () => {
     };
 
     setupEventListeners();
+
+    // The backend shows the idle pill at startup, possibly before the listeners
+    // above exist; recover that missed event from settings.
+    commands
+      .getAppSettings()
+      .then((settings) => {
+        if (settings.status !== "ok" || receivedShowRef.current) return;
+        const s = settings.data;
+        if (s.overlay_always_visible && s.overlay_style !== "none") {
+          setPosition(s.overlay_position === "top" ? "top" : "bottom");
+          setState("idle");
+          setIsVisible(true);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Elapsed capture timer starts only once microphone samples are flowing.
@@ -348,7 +376,10 @@ const RecordingOverlay: React.FC = () => {
   // ---- Minimal overlay: exactly one row at a time — waveform (recording), or a
   // spinner + label (transcribing / processing). Never both. The pill animates its
   // width between them; the cancel button is in both rows so it stays put.
+  // The idle pill (always-visible overlay) reuses the resting row without the
+  // cancel button, so idle -> recording is the same width morph as the others.
   const working = state === "transcribing" || state === "processing";
+  const idle = state === "idle";
   const workLabel =
     state === "processing" ? t("overlay.processing") : transcribingLabel;
 
@@ -358,9 +389,11 @@ const RecordingOverlay: React.FC = () => {
       className={`ov-stage ${position} ov-fade ${isVisible ? "show" : ""}`}
     >
       <div
-        className={`scard compact ${working && isVisible ? "cworking" : ""}`}
+        className={`scard compact ${working && isVisible ? "cworking" : ""} ${
+          idle ? "sidle" : ""
+        }`}
       >
-        {working ? workingRow(workLabel, true) : listeningRow(false, true)}
+        {working ? workingRow(workLabel, true) : listeningRow(false, !idle)}
       </div>
     </div>
   );

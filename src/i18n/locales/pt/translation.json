@@ -501,6 +501,10 @@
             "live": "Ao vivo"
           }
         },
+        "alwaysVisible": {
+          "title": "Always Show Overlay",
+          "description": "Keep a small idle pill on screen between recordings. It expands while recording and lets clicks pass through when idle."
+        },
         "position": {
           "title": "Posição da Sobreposição",
           "description": "Exibir sobreposição de feedback visual durante gravação e transcrição. No Linux, 'Nenhum' é recomendado.",

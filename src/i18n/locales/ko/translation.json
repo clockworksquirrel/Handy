@@ -501,6 +501,10 @@
             "live": "실시간"
           }
         },
+        "alwaysVisible": {
+          "title": "Always Show Overlay",
+          "description": "Keep a small idle pill on screen between recordings. It expands while recording and lets clicks pass through when idle."
+        },
         "position": {
           "title": "오버레이 위치",
           "description": "녹음 및 전사 중 시각적 피드백 오버레이를 표시합니다. Linux에서는 '없음'을 권장합니다.",

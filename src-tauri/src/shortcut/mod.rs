@@ -754,7 +754,19 @@ pub fn change_overlay_style_setting(app: AppHandle, style: String) -> Result<(),
 
     // Reposition in case the window needs to re-center for the new style.
     crate::utils::update_overlay_position(&app);
+    // Show/hide the idle pill: None hides it, leaving None restores it.
+    crate::overlay::sync_idle_overlay(&app);
 
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_overlay_always_visible_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.overlay_always_visible = enabled;
+    settings::write_settings(&app, settings);
+    crate::overlay::sync_idle_overlay(&app);
     Ok(())
 }
 

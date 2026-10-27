@@ -23,6 +23,7 @@
      the card's max footprint (--ov-work-w for compact, --ov-open-w for Live),
      since the card is anchored flush to the screen edge in CSS. Keep overlay.rs
      in sync when these change. */
+  --ov-idle-w: 120px; /* idle pill (overlay_always_visible), between sessions */
   --ov-rest-w: 172px; /* resting compact pill (minimal, recording) -- roomy enough
                          for the English working label before the grow starts */
   --ov-pill-w: 184px; /* base width / Live pill before it opens or collapses */
@@ -156,6 +157,11 @@
 }
 .scard.compact.cworking {
   width: var(--ov-work-w);
+}
+/* Idle pill: narrower and dimmed; widens to the resting pill when recording. */
+.scard.compact.sidle {
+  width: var(--ov-idle-w);
+  opacity: 0.6;
 }
 
 /* text region — auto-height open via grid-rows trick; region fades as a whole */

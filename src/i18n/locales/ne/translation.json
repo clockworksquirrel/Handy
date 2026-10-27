@@ -501,6 +501,10 @@
             "live": "लाइभ"
           }
         },
+        "alwaysVisible": {
+          "title": "Always Show Overlay",
+          "description": "Keep a small idle pill on screen between recordings. It expands while recording and lets clicks pass through when idle."
+        },
         "position": {
           "title": "ओभरले स्थिति",
           "description": "रेकर्डिङ र ट्रान्सक्रिप्सनका बेला ओभरले स्क्रिनमा कहाँ देखिन्छ।",

@@ -501,6 +501,10 @@
             "live": "ライブ"
           }
         },
+        "alwaysVisible": {
+          "title": "Always Show Overlay",
+          "description": "Keep a small idle pill on screen between recordings. It expands while recording and lets clicks pass through when idle."
+        },
         "position": {
           "title": "オーバーレイの位置",
           "description": "録音と文字起こし中に表示するオーバーレイが表示される位置を選択します。",

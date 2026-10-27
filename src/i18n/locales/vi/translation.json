@@ -501,6 +501,10 @@
             "live": "Trực tiếp"
           }
         },
+        "alwaysVisible": {
+          "title": "Always Show Overlay",
+          "description": "Keep a small idle pill on screen between recordings. It expands while recording and lets clicks pass through when idle."
+        },
         "position": {
           "title": "Vị trí lớp phủ",
           "description": "Hiển thị lớp phủ phản hồi trực quan trong quá trình ghi âm và chuyển đổi. Trên Linux, 'Không có' được khuyến nghị.",

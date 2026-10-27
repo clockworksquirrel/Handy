@@ -543,6 +543,10 @@ pub struct AppSettings {
     /// `overlay_position` (position `none` → style `None`).
     #[serde(default = "default_overlay_style")]
     pub overlay_style: OverlayStyle,
+    /// Keep an idle pill on screen between recordings instead of hiding the
+    /// overlay. No effect when `overlay_style` is None.
+    #[serde(default)]
+    pub overlay_always_visible: bool,
 }
 
 fn default_model() -> String {
@@ -1034,6 +1038,7 @@ pub fn get_default_settings() -> AppSettings {
         vad_backend: VadBackend::default(),
         long_form_chunking: default_long_form_chunking(),
         overlay_style: default_overlay_style(),
+        overlay_always_visible: false,
     }
 }
 
