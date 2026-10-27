@@ -830,6 +830,17 @@ pub fn apply_voice_commands(text: &str, commands: bool, emoji: bool) -> VoiceCom
     VoiceCommandOutput { text: out, submit }
 }
 
+/// Emoji-only pass for text that already went through post-processing, so a
+/// word the LLM corrected ("birthday party emergency" -> "birthday party
+/// emoji") can still become the emoji. Works line by line so the LLM's line
+/// breaks survive; text with no "<name> emoji" phrase comes back unchanged.
+pub fn apply_voice_emoji(text: &str) -> String {
+    text.split('\n')
+        .map(|line| apply_voice_commands(line, false, true).text)
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1143,5 +1154,37 @@ mod tests {
         );
         assert_eq!(apply_voice_commands(text, false, true).text, "hi comma ❤️");
         assert_eq!(apply_voice_commands(text, false, false).text, text);
+    }
+
+    #[test]
+    fn emoji_pass_after_post_processing() {
+        // What Luna returns after fixing a misheard trigger.
+        assert_eq!(
+            apply_voice_emoji("Okay, I'm testing it now. Birthday party emoji."),
+            "Okay, I'm testing it now. 🎉."
+        );
+        assert_eq!(
+            apply_voice_emoji("Sounds good to me, thumbs up emoji"),
+            "Sounds good to me, 👍"
+        );
+        // Line breaks from the LLM survive.
+        assert_eq!(
+            apply_voice_emoji("Hi Sam,\n\nSee you soon fire emoji\nJosh"),
+            "Hi Sam,\n\nSee you soon 🔥\nJosh"
+        );
+        // Emoji the LLM already wrote, and plain text, pass through unchanged.
+        for text in [
+            "That's hilarious 😂 see you tomorrow.",
+            "We had a family emergency last night.",
+            "I'm going to India next month.",
+            "Emoji still doesn't work. Took emoji as emergency.",
+            "  Hello there,\n  world.  ",
+            "",
+        ] {
+            assert_eq!(apply_voice_emoji(text), text);
+        }
+        // Running it twice changes nothing more.
+        let once = apply_voice_emoji("party emoji and heart emoji");
+        assert_eq!(apply_voice_emoji(&once), once);
     }
 }

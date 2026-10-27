@@ -436,6 +436,13 @@ pub(crate) async fn process_transcription_output(
 
     if post_process && !(submit && final_text.is_empty()) {
         if let Some(processed_text) = post_process_transcription(&settings, &final_text).await {
+            // Again after the LLM: its corrections ("emergency" -> "emoji")
+            // can complete a spoken emoji the raw transcript missed.
+            let processed_text = if dictation && settings.voice_emoji_enabled {
+                crate::voice_commands::apply_voice_emoji(&processed_text)
+            } else {
+                processed_text
+            };
             post_processed_text = Some(processed_text.clone());
             final_text = processed_text;
 
