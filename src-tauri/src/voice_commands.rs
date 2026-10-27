@@ -81,6 +81,160 @@ fn push_capitalized(out: &mut String, word: &str) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Spoken emoji: "<name> emoji", e.g. "red heart emoji", "thumbs up emoji
+// medium skin tone". Names are CLDR short names and GitHub shortcodes from the
+// `emojis` crate (full Unicode set, incl. skin-tone variants), plus a few
+// colloquial aliases. The trailing word "emoji" is required.
+
+const EMOJI_WORD: &str = "emoji";
+
+/// Colloquial names CLDR/GitHub lack. Checked after CLDR names and shortcodes.
+const EMOJI_ALIASES: &[(&str, &str)] = &[
+    ("crying laughing", "😂"),
+    ("laughing crying", "😂"),
+    ("cry laughing", "😂"),
+    ("laugh crying", "😂"),
+    ("tears of joy", "😂"),
+    ("love", "❤️"),
+    ("love heart", "❤️"),
+    ("smiley face", "😃"),
+    ("happy face", "😀"),
+    ("sad face", "😢"),
+    ("crying", "😭"),
+    ("shrug", "🤷"),
+    ("praying hands", "🙏"),
+    ("prayer hands", "🙏"),
+    ("high five", "🙏"),
+    ("peace sign", "✌️"),
+    ("hundred", "💯"),
+    ("one hundred", "💯"),
+    ("party", "🥳"),
+    ("clapping", "👏"),
+    ("kiss face", "😘"),
+    ("blowing a kiss", "😘"),
+    ("mind blown", "🤯"),
+];
+
+const SKIN_TONES: &[(&str, emojis::SkinTone)] = &[
+    ("medium light", emojis::SkinTone::MediumLight),
+    ("medium dark", emojis::SkinTone::MediumDark),
+    ("light", emojis::SkinTone::Light),
+    ("medium", emojis::SkinTone::Medium),
+    ("dark", emojis::SkinTone::Dark),
+];
+
+/// Lowercase, `-`/`_`/`:`/`,` as spaces, apostrophes and quotes dropped,
+/// whitespace collapsed.
+fn emoji_key(s: &str) -> String {
+    let cleaned: String = s
+        .chars()
+        .filter(|c| !matches!(c, '\'' | '\u{2019}' | '"' | '\u{201c}' | '\u{201d}' | '.'))
+        .map(|c| {
+            if matches!(c, '-' | '_' | ':' | ',') {
+                ' '
+            } else {
+                c
+            }
+        })
+        .collect();
+    cleaned
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
+}
+
+struct EmojiIndex {
+    by_name: std::collections::HashMap<String, &'static str>,
+    max_words: usize,
+}
+
+fn emoji_index() -> &'static EmojiIndex {
+    static INDEX: std::sync::OnceLock<EmojiIndex> = std::sync::OnceLock::new();
+    INDEX.get_or_init(|| {
+        let mut by_name = std::collections::HashMap::new();
+        let all = || {
+            emojis::iter().flat_map(|e| {
+                let tones: Vec<&'static emojis::Emoji> =
+                    e.skin_tones().map(|t| t.collect()).unwrap_or_default();
+                std::iter::once(e).chain(tones.into_iter().skip(1))
+            })
+        };
+        // CLDR names take priority over shortcodes, shortcodes over aliases.
+        for e in all() {
+            by_name.entry(emoji_key(e.name())).or_insert(e.as_str());
+            // "flag: Japan" is also "Japan flag".
+            if let Some(country) = e.name().strip_prefix("flag: ") {
+                by_name
+                    .entry(emoji_key(&format!("{country} flag")))
+                    .or_insert(e.as_str());
+            }
+        }
+        for e in all() {
+            for code in e.shortcodes() {
+                by_name.entry(emoji_key(code)).or_insert(e.as_str());
+            }
+        }
+        for (alias, emoji) in EMOJI_ALIASES {
+            by_name.entry(emoji_key(alias)).or_insert(emoji);
+        }
+        let max_words = by_name
+            .keys()
+            .map(|k| k.split(' ').count())
+            .max()
+            .unwrap_or(1);
+        EmojiIndex { by_name, max_words }
+    })
+}
+
+/// Words `words[i..i + n]` as one emoji key.
+fn joined_key(words: &[String], i: usize, n: usize) -> Option<String> {
+    (i + n <= words.len()).then(|| emoji_key(&words[i..i + n].join(" ")))
+}
+
+/// Optional "[with] <tone> skin [tone]" at `j`; returns the tone and words used.
+fn match_skin_tone(words: &[String], j: usize) -> Option<(emojis::SkinTone, usize)> {
+    for n in (1..=5).rev() {
+        let Some(key) = joined_key(words, j, n) else {
+            continue;
+        };
+        let key = key.strip_prefix("with ").unwrap_or(&key);
+        for (tone_name, tone) in SKIN_TONES {
+            for suffix in [" skin tone", " skin"] {
+                if key == format!("{tone_name}{suffix}") {
+                    return Some((*tone, n));
+                }
+            }
+        }
+    }
+    None
+}
+
+/// `<name words> emoji [skin tone]` starting at `i`: the emoji and words used.
+fn match_emoji(words: &[String], i: usize) -> Option<(String, usize)> {
+    let index = emoji_index();
+    for n in (1..=index.max_words).rev() {
+        if words.get(i + n).map(String::as_str) != Some(EMOJI_WORD) {
+            continue;
+        }
+        let Some(emoji) = joined_key(words, i, n).and_then(|k| index.by_name.get(&k).copied())
+        else {
+            continue;
+        };
+        let mut used = n + 1;
+        let mut out = emoji.to_string();
+        if let Some((tone, tone_words)) = match_skin_tone(words, i + used) {
+            if let Some(toned) = emojis::get(emoji).and_then(|e| e.with_skin_tone(tone)) {
+                out = toned.as_str().to_string();
+                used += tone_words;
+            }
+        }
+        return Some((out, used));
+    }
+    None
+}
+
 pub fn apply_voice_commands(text: &str) -> VoiceCommandOutput {
     let tokens: Vec<&str> = text.split_whitespace().collect();
     let words: Vec<String> = tokens.iter().map(|t| normalize(t)).collect();
@@ -92,6 +246,20 @@ pub fn apply_voice_commands(text: &str) -> VoiceCommandOutput {
     let mut i = 0;
 
     while i < tokens.len() {
+        if let Some((emoji, len)) = match_emoji(&words, i) {
+            matched = true;
+            // Keep sentence punctuation the model put after the spoken name.
+            let last = tokens[i + len - 1];
+            let trailing = &last[last.trim_end_matches(PUNCTUATION).len()..];
+            if !out.is_empty() && !out.ends_with('\n') {
+                out.push(' ');
+            }
+            out.push_str(&emoji);
+            out.push_str(trailing);
+            capitalize = trailing.ends_with(SENTENCE_END);
+            i += len;
+            continue;
+        }
         if let Some((command, len)) = match_at(&words, i) {
             matched = true;
             i += len;
@@ -230,5 +398,48 @@ mod tests {
             run("periodic commas semicolons"),
             "periodic commas semicolons"
         );
+    }
+
+    #[test]
+    fn spoken_emoji() {
+        assert_eq!(run("I love you heart emoji"), "I love you ❤️");
+        assert_eq!(run("nice thumbs up emoji"), "nice 👍");
+        assert_eq!(run("that was crying laughing emoji"), "that was 😂");
+        assert_eq!(run("Fire emoji."), "🔥.");
+        assert_eq!(run("so good fire emoji fire emoji"), "so good 🔥 🔥");
+        // CLDR names, multi-word, any case, model punctuation ignored.
+        assert_eq!(run("Face with tears of joy, emoji"), "😂");
+        assert_eq!(run("red heart emoji period thanks"), "❤️. Thanks");
+        assert_eq!(run("smiling face with heart eyes emoji"), "😍");
+        assert_eq!(run("party popper emoji"), "🎉");
+        assert_eq!(run("Japan flag emoji"), "🇯🇵");
+    }
+
+    #[test]
+    fn spoken_emoji_skin_tones() {
+        assert_eq!(run("thumbs up emoji medium skin tone"), "👍🏽");
+        assert_eq!(run("waving hand emoji with dark skin tone"), "👋🏿");
+        assert_eq!(run("thumbs up medium-light skin tone emoji"), "👍🏼");
+        // No skin-tone variant: the tone words stay text.
+        assert_eq!(run("fire emoji dark skin tone"), "🔥 dark skin tone");
+    }
+
+    #[test]
+    fn emoji_requires_trailing_word() {
+        for text in [
+            "my heart is on fire",
+            "thumbs up from me",
+            "the emoji was cute",
+            "unknown thing emoji",
+        ] {
+            assert_eq!(run(text), text);
+        }
+    }
+
+    #[test]
+    fn emoji_index_covers_full_set() {
+        let index = emoji_index();
+        assert!(index.by_name.len() > 3000, "{}", index.by_name.len());
+        assert_eq!(index.by_name.get("thumbs up medium skin tone"), Some(&"👍🏽"));
     }
 }
