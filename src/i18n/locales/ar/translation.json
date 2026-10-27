@@ -377,6 +377,10 @@
           "push_to_talk": "يسجّل أثناء الضغط على الاختصار",
           "toggle": "انقر على الاختصار لبدء التسجيل، وانقر مرة أخرى للإيقاف"
         }
+      },
+      "alwaysShowOverlay": {
+        "title": "Always Show Overlay",
+        "description": "Keep a small idle pill on screen between recordings. Click it to start or stop dictation; it expands while recording."
       }
     },
     "models": {
@@ -500,10 +504,6 @@
             "minimal": "مبسط",
             "live": "مباشر"
           }
-        },
-        "alwaysVisible": {
-          "title": "Always Show Overlay",
-          "description": "Keep a small idle pill on screen between recordings. Click it to start or stop dictation; it expands while recording."
         },
         "position": {
           "title": "موقع التراكب",

@@ -16,6 +16,7 @@ export { AlwaysOnMicrophone } from "./AlwaysOnMicrophone";
 export { ShortcutActivationSetting } from "./ShortcutActivation";
 export { AudioFeedback } from "./AudioFeedback";
 export { ShowOverlay } from "./ShowOverlay";
+export { AlwaysShowOverlay } from "./AlwaysShowOverlay";
 export { ShortcutInput } from "./ShortcutInput";
 export { TranslateToEnglish } from "./TranslateToEnglish";
 export { CustomWords } from "./CustomWords";

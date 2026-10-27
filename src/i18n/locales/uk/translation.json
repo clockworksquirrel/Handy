@@ -377,6 +377,10 @@
           "push_to_talk": "Записує, поки комбінація клавіш утримується",
           "toggle": "Натисніть комбінацію клавіш, щоб почати запис, натисніть ще раз, щоб зупинити"
         }
+      },
+      "alwaysShowOverlay": {
+        "title": "Always Show Overlay",
+        "description": "Keep a small idle pill on screen between recordings. Click it to start or stop dictation; it expands while recording."
       }
     },
     "models": {
@@ -500,10 +504,6 @@
             "minimal": "Мінімальна",
             "live": "У реальному часі"
           }
-        },
-        "alwaysVisible": {
-          "title": "Always Show Overlay",
-          "description": "Keep a small idle pill on screen between recordings. Click it to start or stop dictation; it expands while recording."
         },
         "position": {
           "title": "Позиція оверлею",
