@@ -562,6 +562,14 @@ async showMainWindowCommand() : Promise<Result<null, string>> {
 async cancelOperation() : Promise<void> {
     await TAURI_INVOKE("cancel_operation");
 },
+/**
+ * Overlay pill click: toggle dictation. Starts with post-processing when it is
+ * enabled (same as its shortcut), else plain transcription; a click while
+ * recording stops whichever binding is active.
+ */
+async overlayToggleRecording() : Promise<void> {
+    await TAURI_INVOKE("overlay_toggle_recording");
+},
 async isPortable() : Promise<boolean> {
     return await TAURI_INVOKE("is_portable");
 },

@@ -503,7 +503,7 @@
         },
         "alwaysVisible": {
           "title": "Always Show Overlay",
-          "description": "Keep a small idle pill on screen between recordings. It expands while recording and lets clicks pass through when idle."
+          "description": "Keep a small idle pill on screen between recordings. Click it to start or stop dictation; it expands while recording."
         },
         "position": {
           "title": "ओभरले स्थिति",
@@ -943,6 +943,7 @@
   "overlay": {
     "transcribing": "ट्रान्सक्राइब गरिँदैछ...",
     "processing": "प्रशोधन गरिँदैछ...",
+    "clickToDictate": "Click to dictate",
     "loadingModel": "मोडेल लोड गरिँदैछ..."
   },
   "secureInput": {

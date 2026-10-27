@@ -467,7 +467,14 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
             .no_activate(true)
             .corner_radius(0.0)
             .style_mask(StyleMask::empty().borderless().nonactivating_panel())
-            .with_window(|w| w.decorations(false).transparent(true).focusable(false))
+            // accept_first_mouse: the panel never becomes key, so without it the
+            // first click on the pill is swallowed instead of reaching the page.
+            .with_window(|w| {
+                w.decorations(false)
+                    .transparent(true)
+                    .focusable(false)
+                    .accept_first_mouse(true)
+            })
             .collection_behavior(
                 CollectionBehavior::new()
                     .can_join_all_spaces()
@@ -589,10 +596,6 @@ fn show_overlay_state_on_main(app_handle: &AppHandle, state: &str) {
                 show_elapsed
             );
         }
-
-        // The idle pill is display-only: let clicks fall through to whatever is
-        // underneath so a persistent overlay never blocks the app below it.
-        let _ = overlay_window.set_ignore_cursor_events(state == IDLE_STATE);
 
         let _ = overlay_window.emit("show-overlay", state);
     }

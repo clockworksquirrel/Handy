@@ -16,6 +16,23 @@ pub fn cancel_operation(app: AppHandle) {
     cancel_current_operation(&app);
 }
 
+/// Overlay pill click: toggle dictation. Starts with post-processing when it is
+/// enabled (same as its shortcut), else plain transcription; a click while
+/// recording stops whichever binding is active.
+#[tauri::command]
+#[specta::specta]
+pub fn overlay_toggle_recording(app: AppHandle) {
+    let binding = if get_settings(&app).post_process_enabled {
+        "transcribe_with_post_process"
+    } else {
+        "transcribe"
+    };
+    match app.try_state::<crate::TranscriptionCoordinator>() {
+        Some(c) => c.send_overlay_click(binding),
+        None => log::warn!("TranscriptionCoordinator not initialized"),
+    }
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn is_portable() -> bool {

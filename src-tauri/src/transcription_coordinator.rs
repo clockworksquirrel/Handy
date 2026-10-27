@@ -199,8 +199,14 @@ enum Effect {
 /// Commands processed sequentially by the coordinator thread.
 enum Command {
     Input(InputEvent),
-    Cancel { recording_was_active: bool },
+    Cancel {
+        recording_was_active: bool,
+    },
     ProcessingFinished,
+    /// Click on the recording overlay. `idle_binding` starts when idle.
+    OverlayClick {
+        idle_binding: String,
+    },
 }
 
 /// Decide whether a key-up should be deferred (so auto-repeat can cancel it)
@@ -549,6 +555,33 @@ impl CoordinatorState {
         }
     }
 
+    /// Binding an overlay click toggles: the live recording's (stop), or
+    /// `idle_binding` (start). Ignored while the pipeline is busy so a click
+    /// on the working pill can't queue a recording.
+    fn overlay_click_binding(&self, idle_binding: &str) -> Option<String> {
+        match &self.stage {
+            Stage::Recording(id) => Some(id.clone()),
+            Stage::Idle => Some(idle_binding.to_string()),
+            Stage::Processing => None,
+        }
+    }
+
+    /// An overlay click as a toggle-mode external press (never debounced).
+    fn on_overlay_click(&mut self, idle_binding: &str, now: Instant) -> Option<Effect> {
+        let binding_id = self.overlay_click_binding(idle_binding)?;
+        self.on_input(
+            InputEvent {
+                binding_id,
+                hotkey_string: "overlay".to_string(),
+                is_pressed: true,
+                mode: ShortcutActivation::Toggle,
+                hold_threshold: Duration::ZERO,
+                external: true,
+            },
+            now,
+        )
+    }
+
     fn begin_processing(&mut self, binding_id: String, hotkey_string: String) -> Effect {
         self.stage = Stage::Processing;
         self.hold = None;
@@ -626,6 +659,13 @@ impl TranscriptionCoordinator {
                                 run_effect(&app, &mut state, effect);
                             }
                         }
+                        Command::OverlayClick { idle_binding } => {
+                            if let Some(effect) =
+                                state.on_overlay_click(&idle_binding, Instant::now())
+                            {
+                                run_effect(&app, &mut state, effect);
+                            }
+                        }
                     }
                     if !was_locked && state.is_recording_locked() {
                         emit_recording_phase(&app, RecordingPhase::Locked);
@@ -693,6 +733,20 @@ impl TranscriptionCoordinator {
                 hold_threshold,
                 external,
             }))
+            .is_err()
+        {
+            warn!("Transcription coordinator channel closed");
+        }
+    }
+
+    /// Overlay pill click: stops the active recording (whichever binding
+    /// started it) or starts `idle_binding` when idle. No-op while busy.
+    pub fn send_overlay_click(&self, idle_binding: &str) {
+        if self
+            .tx
+            .send(Command::OverlayClick {
+                idle_binding: idle_binding.to_string(),
+            })
             .is_err()
         {
             warn!("Transcription coordinator channel closed");
@@ -768,6 +822,55 @@ fn stop(app: &AppHandle, binding_id: &str, hotkey_string: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn overlay_click_starts_idle_binding_then_stops_it() {
+        let mut state = CoordinatorState::new();
+        let now = Instant::now();
+        assert_eq!(
+            state.on_overlay_click("transcribe_with_post_process", now),
+            Some(Effect::Start {
+                binding_id: "transcribe_with_post_process".into(),
+                hotkey_string: "overlay".into(),
+            })
+        );
+        assert!(state.is_recording_locked());
+        // A second click right away is not debounced away.
+        assert_eq!(
+            state.on_overlay_click("transcribe_with_post_process", now),
+            Some(Effect::Stop {
+                binding_id: "transcribe_with_post_process".into(),
+                hotkey_string: "overlay".into(),
+            })
+        );
+        assert_eq!(state.stage, Stage::Processing);
+    }
+
+    #[test]
+    fn overlay_click_stops_recording_started_by_other_binding() {
+        let mut state = CoordinatorState::new();
+        state.begin_recording(
+            "transcribe".into(),
+            "option+space".into(),
+            Instant::now(),
+            false,
+        );
+        assert_eq!(
+            state.on_overlay_click("transcribe_with_post_process", Instant::now()),
+            Some(Effect::Stop {
+                binding_id: "transcribe".into(),
+                hotkey_string: "overlay".into(),
+            })
+        );
+    }
+
+    #[test]
+    fn overlay_click_ignored_while_processing() {
+        let mut state = CoordinatorState::new();
+        state.stage = Stage::Processing;
+        assert_eq!(state.on_overlay_click("transcribe", Instant::now()), None);
+        assert!(state.pending_press.is_none());
+    }
 
     #[test]
     fn push_to_talk_release_while_recording_defers_release() {

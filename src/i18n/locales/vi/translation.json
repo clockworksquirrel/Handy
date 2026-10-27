@@ -503,7 +503,7 @@
         },
         "alwaysVisible": {
           "title": "Always Show Overlay",
-          "description": "Keep a small idle pill on screen between recordings. It expands while recording and lets clicks pass through when idle."
+          "description": "Keep a small idle pill on screen between recordings. Click it to start or stop dictation; it expands while recording."
         },
         "position": {
           "title": "Vị trí lớp phủ",
@@ -943,6 +943,7 @@
   "overlay": {
     "transcribing": "Đang chuyển đổi...",
     "processing": "Đang xử lý...",
+    "clickToDictate": "Click to dictate",
     "loadingModel": "Đang tải mô hình..."
   },
   "secureInput": {

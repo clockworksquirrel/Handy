@@ -68,6 +68,9 @@ const RecordingOverlay: React.FC = () => {
   const [overflowing, setOverflowing] = useState(false);
 
   const smoothedLevelsRef = useRef<number[]>(Array(16).fill(0));
+  // Time of the last accepted overlay click; drops the second click of a
+  // double-click so it can't start and immediately stop a recording.
+  const lastClickRef = useRef(0);
   // Set once the backend has driven the overlay, so the startup idle check
   // below can't override a session that began before it resolved.
   const receivedShowRef = useRef(false);
@@ -248,6 +251,14 @@ const RecordingOverlay: React.FC = () => {
     pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight <= 16;
   };
 
+  // Clicking the pill toggles dictation: idle starts it, recording stops it.
+  const toggleFromOverlay = () => {
+    const now = Date.now();
+    if (now - lastClickRef.current < 400) return;
+    lastClickRef.current = now;
+    commands.overlayToggleRecording();
+  };
+
   const fmtTime = (s: number) =>
     `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
@@ -273,7 +284,10 @@ const RecordingOverlay: React.FC = () => {
     <button
       className="sx"
       aria-label="cancel"
-      onClick={() => commands.cancelOperation()}
+      onClick={(e) => {
+        e.stopPropagation(); // don't also toggle via the row's click
+        commands.cancelOperation();
+      }}
     >
       <svg viewBox="0 0 16 16" aria-hidden="true">
         <path
@@ -289,7 +303,7 @@ const RecordingOverlay: React.FC = () => {
   // dot (left) | waveform (center) | timer + cancel (right) — same structure for
   // pill & panel, so the Live morph is a pure width change.
   const listeningRow = (showTimer: boolean, showCancel: boolean) => (
-    <div className="sbase">
+    <div className="sbase sclick" onClick={toggleFromOverlay}>
       <div className="sbase-l">
         <span className={`sdot ${captureReady ? "ready" : "arming"}`} />
       </div>
@@ -298,6 +312,36 @@ const RecordingOverlay: React.FC = () => {
         {showTimer && <span className="stimer">{fmtTime(elapsed)}</span>}
         {showCancel && cancelBtn}
       </div>
+    </div>
+  );
+
+  // Idle pill (always-visible overlay): a mic + hint, so it reads as a button
+  // rather than a silent waveform. Clicking starts dictation.
+  const idleRow = (
+    <div
+      className="sbase sclick sidle-row"
+      role="button"
+      title={t("overlay.clickToDictate")}
+      onClick={toggleFromOverlay}
+    >
+      <svg className="smic" viewBox="0 0 16 16" aria-hidden="true">
+        <rect
+          x="5.25"
+          y="1.5"
+          width="5.5"
+          height="8.5"
+          rx="2.75"
+          fill="currentColor"
+        />
+        <path
+          d="M3.25 7.75a4.75 4.75 0 0 0 9.5 0M8 12.5v2"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          fill="none"
+        />
+      </svg>
+      <span className="sidle-label">{t("overlay.clickToDictate")}</span>
     </div>
   );
 
@@ -376,8 +420,8 @@ const RecordingOverlay: React.FC = () => {
   // ---- Minimal overlay: exactly one row at a time — waveform (recording), or a
   // spinner + label (transcribing / processing). Never both. The pill animates its
   // width between them; the cancel button is in both rows so it stays put.
-  // The idle pill (always-visible overlay) reuses the resting row without the
-  // cancel button, so idle -> recording is the same width morph as the others.
+  // The idle pill (always-visible overlay) is the same card at its own width,
+  // so idle -> recording is the same width morph as the others.
   const working = state === "transcribing" || state === "processing";
   const idle = state === "idle";
   const workLabel =
@@ -393,7 +437,11 @@ const RecordingOverlay: React.FC = () => {
           idle ? "sidle" : ""
         }`}
       >
-        {working ? workingRow(workLabel, true) : listeningRow(false, !idle)}
+        {working
+          ? workingRow(workLabel, true)
+          : idle
+            ? idleRow
+            : listeningRow(false, true)}
       </div>
     </div>
   );

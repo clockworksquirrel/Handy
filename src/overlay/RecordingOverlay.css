@@ -23,7 +23,7 @@
      the card's max footprint (--ov-work-w for compact, --ov-open-w for Live),
      since the card is anchored flush to the screen edge in CSS. Keep overlay.rs
      in sync when these change. */
-  --ov-idle-w: 120px; /* idle pill (overlay_always_visible), between sessions */
+  --ov-idle-w: 156px; /* idle pill (overlay_always_visible): mic + hint */
   --ov-rest-w: 172px; /* resting compact pill (minimal, recording) -- roomy enough
                          for the English working label before the grow starts */
   --ov-pill-w: 184px; /* base width / Live pill before it opens or collapses */
@@ -161,7 +161,50 @@
 /* Idle pill: narrower and dimmed; widens to the resting pill when recording. */
 .scard.compact.sidle {
   width: var(--ov-idle-w);
-  opacity: 0.6;
+  opacity: 0.85;
+  transition:
+    width 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 150ms ease,
+    border-color 150ms ease,
+    background-color 150ms ease;
+}
+/* Hover: the idle pill lights up in the accent so it reads as clickable. */
+.scard.compact.sidle:hover {
+  opacity: 1;
+  border-color: var(--s-accent);
+  background: color-mix(in srgb, var(--s-accent) 12%, var(--s-surface));
+}
+.scard.compact.sidle:active {
+  transform: scale(0.97);
+}
+
+/* Clickable control row (idle starts dictation, recording stops it). */
+.sclick {
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.sbase.sclick:not(.sidle-row):hover {
+  background: var(--s-hair);
+}
+.sidle-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--color-text);
+}
+.smic {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  color: var(--s-accent);
+}
+.sidle-label {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 /* text region — auto-height open via grid-rows trick; region fades as a whole */
