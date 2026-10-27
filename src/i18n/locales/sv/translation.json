@@ -583,6 +583,10 @@
         "title": "Dela upp långt ljud",
         "description": "Delar upp långa inspelningar vid pauser före transkribering, vilket oftast förbättrar transkriberingen. Transkriberade filer och långa omtranskriberingar delas alltid upp."
       },
+      "liveFinalPass": {
+        "title": "Mer exakt slutlig transkription",
+        "description": "Med en strömmande modell transkriberas hela inspelningen igen när du stoppar och den texten används i stället för liveförhandsvisningen. Ofta mer exakt; ger en kort paus innan inklistring."
+      },
       "vadBackend": {
         "title": "Backend för röstdetektering",
         "description": "Välj detektorn som används för att filtrera bort tystnad. Earshot är experimentell; byt tillbaka till Silero om tal klipps eller brus behålls.",

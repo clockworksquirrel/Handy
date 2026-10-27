@@ -1382,6 +1382,15 @@ pub fn change_long_form_chunking_setting(app: AppHandle, enabled: bool) -> Resul
 
 #[tauri::command]
 #[specta::specta]
+pub fn change_live_final_pass_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.live_final_pass = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn change_vad_backend_setting(app: AppHandle, backend: VadBackend) -> Result<(), String> {
     if settings::get_settings(&app).vad_backend == backend {
         return Ok(());

@@ -583,6 +583,10 @@
         "title": "Uzun Sesi Bölme",
         "description": "Uzun kayıtları yazıya dökmeden önce duraklamalardan böler; bu genellikle yazıya dökme performansını artırır. Yazıya dökülen dosyalar ve uzun yeniden transkripsiyonlar her zaman bölünür."
       },
+      "liveFinalPass": {
+        "title": "Daha Doğru Son Döküm",
+        "description": "Akış modelinde, durdurduğunuzda tüm kaydı yeniden yazıya döker ve canlı önizleme yerine bu metni kullanır. Genellikle daha doğrudur; yapıştırmadan önce kısa bir bekleme ekler."
+      },
       "vadBackend": {
         "title": "Ses Etkinliği Arka Ucu",
         "description": "Sessizliği filtrelemek için kullanılan algılayıcıyı seçin. Earshot deneyseldir; konuşma kesiliyorsa veya gürültü korunuyorsa Silero'ya geri dönün.",

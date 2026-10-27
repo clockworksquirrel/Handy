@@ -180,6 +180,8 @@ const settingUpdaters: {
   vad_enabled: (value) => commands.changeVadEnabledSetting(value as boolean),
   long_form_chunking: (value) =>
     commands.changeLongFormChunkingSetting(value as boolean),
+  live_final_pass: (value) =>
+    commands.changeLiveFinalPassSetting(value as boolean),
   vad_backend: async (value) => {
     const result = await commands.changeVadBackendSetting(value as VadBackend);
     if (result.status === "error") {

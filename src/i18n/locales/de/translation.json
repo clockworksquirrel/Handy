@@ -583,6 +583,10 @@
         "title": "Lange Aufnahmen aufteilen",
         "description": "Teilt lange Aufnahmen vor der Transkription an Sprechpausen auf, was die Transkription in der Regel verbessert. Transkribierte Dateien und lange erneute Transkriptionen werden immer aufgeteilt."
       },
+      "liveFinalPass": {
+        "title": "Genauere finale Transkription",
+        "description": "Bei einem Streaming-Modell wird die gesamte Aufnahme nach dem Stoppen erneut transkribiert und dieser Text statt der Live-Vorschau verwendet. Oft genauer; kurze Verzögerung vor dem Einfügen."
+      },
       "vadBackend": {
         "title": "VAD-Backend",
         "description": "Wählt den Detektor zum Herausfiltern von Stille. Earshot ist experimentell; wechseln Sie zurück zu Silero, wenn Sprache abgeschnitten oder Rauschen beibehalten wird.",

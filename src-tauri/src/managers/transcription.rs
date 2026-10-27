@@ -923,7 +923,19 @@ impl TranscriptionManager {
     /// batch run of the whole recording when there is no live result.
     pub fn transcribe_recording(&self, samples: Vec<f32>) -> Result<String> {
         let started = Instant::now();
-        let live = self.finalize_live(samples.len())?;
+        let live = match self.finalize_live(samples.len())? {
+            Some(live) if get_settings(&self.app_handle).live_final_pass => {
+                let pass_started = Instant::now();
+                let batch = self.decode_batch(samples.clone());
+                let chosen = choose_final_pass(live, batch)?;
+                debug!(
+                    "Final pass over the live result took {:?}",
+                    pass_started.elapsed()
+                );
+                Some(chosen)
+            }
+            other => other,
+        };
         self.complete(started, samples, live)
     }
 
@@ -1114,6 +1126,36 @@ struct RunOutcome {
     text: String,
     /// The language the model itself detected, if it reported one.
     model_detected_language: Option<String>,
+}
+
+/// The final-pass decision (`live_final_pass`): the batch decode of the whole
+/// recording replaces the live stream's text, unless it failed or came back
+/// empty, in which case the live text stands. A cancel is still a cancel.
+fn choose_final_pass(live: RunOutcome, batch: Result<RunOutcome>) -> Result<RunOutcome> {
+    match batch {
+        Ok(batch) if !batch.text.trim().is_empty() => {
+            if batch.text != live.text {
+                info!("Final pass replaced the live transcript");
+            }
+            Ok(batch)
+        }
+        Ok(_) => {
+            info!("Final pass was empty; keeping the live transcript");
+            Ok(live)
+        }
+        Err(e)
+            if matches!(
+                e.downcast_ref::<EngineError>(),
+                Some(EngineError::Cancelled)
+            ) =>
+        {
+            Err(e)
+        }
+        Err(e) => {
+            warn!("Final pass failed ({}); keeping the live transcript", e);
+            Ok(live)
+        }
+    }
 }
 
 /// One transcription's final text: its output language resolved, then
@@ -1835,6 +1877,44 @@ pub fn get_available_accelerators(tm: &TranscriptionManager) -> AvailableAcceler
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn outcome(text: &str) -> RunOutcome {
+        RunOutcome {
+            setup: RunSetup {
+                run_options: RunOptions::default(),
+                languages: Vec::new(),
+                applied_language_hint: None,
+                output_was_translated: false,
+            },
+            text: text.to_string(),
+            model_detected_language: None,
+        }
+    }
+
+    #[test]
+    fn final_pass_prefers_the_batch_text() {
+        // Josh's 23:04 recording: the stream heard "emergency", the full
+        // decode of the same audio heard "emoji".
+        let live = outcome("Okay, I'm testing it now birthday party emergency");
+        let batch = outcome("Okay, I'm testing it now birthday party emoji");
+        let chosen = choose_final_pass(live, Ok(batch)).unwrap();
+        assert_eq!(chosen.text, "Okay, I'm testing it now birthday party emoji");
+    }
+
+    #[test]
+    fn final_pass_keeps_live_text_when_batch_is_empty_or_fails() {
+        let chosen = choose_final_pass(outcome("hello there"), Ok(outcome("  "))).unwrap();
+        assert_eq!(chosen.text, "hello there");
+        let failed = Err(anyhow::anyhow!("engine went away"));
+        let chosen = choose_final_pass(outcome("hello there"), failed).unwrap();
+        assert_eq!(chosen.text, "hello there");
+    }
+
+    #[test]
+    fn final_pass_propagates_cancel() {
+        let cancelled: Result<RunOutcome> = Err(EngineError::Cancelled.into());
+        assert!(choose_final_pass(outcome("hello"), cancelled).is_err());
+    }
 
     fn languages(codes: &[&str]) -> Vec<String> {
         codes.iter().map(|code| (*code).to_string()).collect()

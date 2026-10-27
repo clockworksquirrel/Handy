@@ -583,6 +583,10 @@
         "title": "Dzielenie długich nagrań",
         "description": "Dzieli długie nagrania w miejscach pauz przed transkrypcją, co zwykle poprawia jakość transkrypcji. Transkrybowane pliki i długie ponowne transkrypcje są zawsze dzielone."
       },
+      "liveFinalPass": {
+        "title": "Dokładniejsza transkrypcja końcowa",
+        "description": "Przy modelu strumieniowym po zatrzymaniu ponownie transkrybuje całe nagranie i używa tego tekstu zamiast podglądu na żywo. Często dokładniejsze; dodaje krótką przerwę przed wklejeniem."
+      },
       "vadBackend": {
         "title": "Backend wykrywania głosu",
         "description": "Wybierz detektor używany do filtrowania ciszy. Earshot jest eksperymentalny; wróć do Silero, jeśli mowa jest ucinana lub szum jest zachowywany.",

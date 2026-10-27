@@ -583,6 +583,10 @@
         "title": "División de audio largo",
         "description": "Divide las grabaciones largas en las pausas antes de transcribirlas, lo que normalmente mejora el rendimiento de la transcripción. Los archivos transcritos y las re-transcripciones largas siempre se dividen."
       },
+      "liveFinalPass": {
+        "title": "Transcripción final más precisa",
+        "description": "Con un modelo en streaming, vuelve a transcribir toda la grabación al detenerla y usa ese texto en lugar de la vista previa en vivo. Suele ser más preciso; añade una breve pausa antes de pegar."
+      },
       "vadBackend": {
         "title": "Backend de detección de voz",
         "description": "Elige el detector usado para filtrar el silencio. Earshot es experimental; vuelve a Silero si la voz se recorta o se conserva el ruido.",

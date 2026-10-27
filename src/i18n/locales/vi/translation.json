@@ -583,6 +583,10 @@
         "title": "Chia nhỏ âm thanh dài",
         "description": "Chia các bản ghi dài tại các khoảng ngắt trước khi chuyển thành văn bản, điều này thường cải thiện hiệu quả chuyển văn bản. Tệp được chép lời và các lần phiên âm lại dài luôn được chia nhỏ."
       },
+      "liveFinalPass": {
+        "title": "Bản chép lời cuối chính xác hơn",
+        "description": "Với mô hình phát trực tuyến, chép lại toàn bộ bản ghi khi bạn dừng và dùng văn bản đó thay cho bản xem trước trực tiếp. Thường chính xác hơn; thêm một khoảng dừng ngắn trước khi dán."
+      },
       "vadBackend": {
         "title": "Bộ phát hiện giọng nói",
         "description": "Chọn bộ phát hiện dùng để lọc khoảng lặng. Earshot đang thử nghiệm; hãy chuyển về Silero nếu giọng nói bị cắt hoặc tiếng ồn vẫn còn.",

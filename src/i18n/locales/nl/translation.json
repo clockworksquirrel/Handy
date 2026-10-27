@@ -583,6 +583,10 @@
         "title": "Lange audio opsplitsen",
         "description": "Splitst lange opnames bij pauzes op voordat ze worden getranscribeerd, wat de transcriptie doorgaans verbetert. Getranscribeerde bestanden en lange hertranscripties worden altijd opgesplitst."
       },
+      "liveFinalPass": {
+        "title": "Nauwkeurigere eindtranscriptie",
+        "description": "Bij een streamingmodel wordt de hele opname na het stoppen opnieuw getranscribeerd en die tekst gebruikt in plaats van de live-preview. Vaak nauwkeuriger; korte pauze voor het plakken."
+      },
       "vadBackend": {
         "title": "VAD-backend",
         "description": "Kies de detector die stilte filtert. Earshot is experimenteel; schakel terug naar Silero als spraak wordt afgekapt of ruis behouden blijft.",

@@ -58,6 +58,12 @@ pub struct CliArgs {
     #[arg(long, value_name = "N")]
     pub repeat: Option<usize>,
 
+    /// Feed --transcribe-file through the live streaming path (as the app does
+    /// while recording, in 30 ms frames) instead of one batch run. Streaming
+    /// models only; others fall back to batch exactly like the app.
+    #[arg(long)]
+    pub stream: bool,
+
     /// Emit --transcribe-file results as JSON.
     #[arg(long)]
     pub json: bool,

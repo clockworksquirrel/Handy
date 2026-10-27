@@ -583,6 +583,10 @@
         "title": "Suddivisione dell'audio lungo",
         "description": "Suddivide le registrazioni lunghe in corrispondenza delle pause prima della trascrizione, il che di solito migliora le prestazioni della trascrizione. I file trascritti e le ri-trascrizioni lunghe vengono sempre suddivisi."
       },
+      "liveFinalPass": {
+        "title": "Trascrizione finale più accurata",
+        "description": "Con un modello in streaming, ritrascrive l'intera registrazione quando ti fermi e usa quel testo invece dell'anteprima dal vivo. Spesso più accurato; aggiunge una breve pausa prima di incollare."
+      },
       "vadBackend": {
         "title": "Backend di rilevamento vocale",
         "description": "Scegli il rilevatore usato per filtrare il silenzio. Earshot è sperimentale; torna a Silero se il parlato viene tagliato o il rumore viene mantenuto.",

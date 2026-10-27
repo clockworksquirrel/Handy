@@ -579,7 +579,20 @@ fn run_headless_transcription(app: &AppHandle, args: &CliArgs) -> i32 {
             }
         }
         let t = Instant::now();
-        match tm.transcribe(samples.clone()) {
+        let result = if args.stream {
+            // Mirror a recording: open the stream, feed the clip in 30 ms
+            // frames (what the capture sink emits), then finish it the way a
+            // stopped recording does.
+            tm.start_stream();
+            let router = tm.stream_router();
+            for frame in samples.chunks(480) {
+                router.feed(frame);
+            }
+            tm.transcribe_recording(samples.clone())
+        } else {
+            tm.transcribe(samples.clone())
+        };
+        match result {
             Ok(out) => text = out,
             Err(e) => {
                 eprintln!("error: transcribe failed: {}", e);
@@ -703,6 +716,7 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_lazy_stream_close_setting,
             shortcut::change_vad_enabled_setting,
             shortcut::change_long_form_chunking_setting,
+            shortcut::change_live_final_pass_setting,
             shortcut::change_vad_backend_setting,
             shortcut::change_filler_word_removal_enabled_setting,
             shortcut::change_chinese_script_setting,

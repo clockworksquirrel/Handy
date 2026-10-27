@@ -583,6 +583,10 @@
         "title": "Opdeling af lang lyd",
         "description": "Deler lange optagelser ved pauser før transskribering, hvilket typisk forbedrer transskriptionen. Transskriberede filer og lange gentransskriberinger deles altid."
       },
+      "liveFinalPass": {
+        "title": "Mere præcis endelig transskription",
+        "description": "Med en streamingmodel transskriberes hele optagelsen igen, når du stopper, og den tekst bruges i stedet for live-forhåndsvisningen. Ofte mere præcis; giver en kort pause før indsættelse."
+      },
       "vadBackend": {
         "title": "Stemmedetektions-backend",
         "description": "Vælg den detektor, der bruges til at filtrere stilhed. Earshot er eksperimentel; skift tilbage til Silero, hvis tale klippes eller støj bevares.",

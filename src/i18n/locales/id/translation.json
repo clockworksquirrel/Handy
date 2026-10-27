@@ -583,6 +583,10 @@
         "title": "Pemisahan Audio Panjang",
         "description": "Memisahkan rekaman panjang pada jeda sebelum ditranskripsi, yang biasanya meningkatkan kinerja transkripsi. File yang ditranskripsi dan transkripsi ulang yang panjang selalu dipisahkan."
       },
+      "liveFinalPass": {
+        "title": "Transkrip Akhir Lebih Akurat",
+        "description": "Dengan model streaming, mentranskripsi ulang seluruh rekaman saat Anda berhenti dan memakai teks itu, bukan pratinjau langsung. Sering lebih akurat; menambah jeda singkat sebelum menempel."
+      },
       "vadBackend": {
         "title": "Backend Deteksi Aktivitas Suara",
         "description": "Pilih detektor yang digunakan untuk menyaring keheningan. Earshot bersifat eksperimental; kembali ke Silero jika ucapan terpotong atau kebisingan tetap terekam.",

@@ -583,6 +583,10 @@
         "title": "Dělení dlouhého zvuku",
         "description": "Před přepisem rozdělí dlouhé nahrávky v pauzách, což obvykle zlepšuje kvalitu přepisu. Přepisované soubory a dlouhé opakované přepisy se rozdělují vždy."
       },
+      "liveFinalPass": {
+        "title": "Přesnější konečný přepis",
+        "description": "U streamovacího modelu po zastavení znovu přepíše celou nahrávku a použije tento text místo živého náhledu. Často přesnější; před vložením přidá krátkou pauzu."
+      },
       "vadBackend": {
         "title": "Backend detekce hlasu",
         "description": "Vyberte detektor používaný k filtrování ticha. Earshot je experimentální; pokud je řeč ořezávána nebo zůstává šum, přepněte zpět na Silero.",
