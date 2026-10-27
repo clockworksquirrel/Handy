@@ -744,14 +744,107 @@ fn idle_overlay_enabled(settings: &settings::AppSettings) -> bool {
 /// session is active; its end (`hide_recording_overlay`) settles the state.
 /// Called at startup and whenever overlay style/visibility settings change.
 pub fn sync_idle_overlay(app_handle: &AppHandle) {
+    let wanted = idle_overlay_enabled(&settings::get_settings(app_handle));
+    IDLE_OVERLAY_WANTED.store(wanted, Ordering::SeqCst);
     if OVERLAY_ACTIVE.load(Ordering::SeqCst) {
         return;
     }
-    if idle_overlay_enabled(&settings::get_settings(app_handle)) {
+    if wanted {
         show_overlay_state(app_handle, IDLE_STATE);
     } else {
         hide_overlay_window(app_handle);
     }
+}
+
+/// Cached `idle_overlay_enabled` result, refreshed by `sync_idle_overlay` (at
+/// startup and on every overlay setting change) so the watchdog below never
+/// reads the settings store.
+static IDLE_OVERLAY_WANTED: AtomicBool = AtomicBool::new(false);
+
+/// How often the macOS watchdog checks that the idle pill is still on screen.
+#[cfg(target_os = "macos")]
+const IDLE_OVERLAY_WATCHDOG_INTERVAL: std::time::Duration = std::time::Duration::from_secs(2);
+
+/// Display layout as (x, y, width, height) per monitor, in physical pixels.
+#[cfg(target_os = "macos")]
+type DisplayLayout = Vec<(i32, i32, u32, u32)>;
+
+/// Keeps the always-visible idle pill on screen across display changes.
+///
+/// The pill is only shown at startup, on setting changes and when a session
+/// ends. Closing the lid (clamshell sleep), unplugging or re-arranging
+/// displays removes the screen the panel sits on; AppKit can then leave the
+/// non-activating panel ordered out or parked on a screen that no longer
+/// exists, and nothing showed it again, so the bar vanished until Handy was
+/// restarted. Every couple of seconds this re-shows (and re-positions) the
+/// pill when it should be visible but the panel is hidden, has no screen, or
+/// the display layout changed since the last check.
+#[cfg(target_os = "macos")]
+pub fn start_idle_overlay_watchdog(app_handle: &AppHandle) {
+    use std::sync::{Arc, Mutex};
+    let handle = app_handle.clone();
+    let last_layout: Arc<Mutex<Option<DisplayLayout>>> = Arc::new(Mutex::new(None));
+    let spawned = std::thread::Builder::new()
+        .name("idle-overlay-watchdog".into())
+        .spawn(move || loop {
+            std::thread::sleep(IDLE_OVERLAY_WATCHDOG_INTERVAL);
+            if OVERLAY_ACTIVE.load(Ordering::SeqCst) || !IDLE_OVERLAY_WANTED.load(Ordering::SeqCst)
+            {
+                continue;
+            }
+            let h = handle.clone();
+            let layout = last_layout.clone();
+            let _ = handle.run_on_main_thread(move || reassert_idle_overlay_on_main(&h, &layout));
+        });
+    if let Err(e) = spawned {
+        log::error!("Failed to start idle overlay watchdog: {e}");
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn reassert_idle_overlay_on_main(
+    app_handle: &AppHandle,
+    last_layout: &std::sync::Mutex<Option<DisplayLayout>>,
+) {
+    // Re-check on the main thread: a session may have started since the
+    // watchdog queued this closure.
+    if OVERLAY_ACTIVE.load(Ordering::SeqCst) || !IDLE_OVERLAY_WANTED.load(Ordering::SeqCst) {
+        return;
+    }
+    let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") else {
+        return;
+    };
+    let layout: DisplayLayout = app_handle
+        .available_monitors()
+        .map(|monitors| {
+            monitors
+                .iter()
+                .map(|m| (m.position().x, m.position().y, m.size().width, m.size().height))
+                .collect()
+        })
+        .unwrap_or_default();
+    let layout_changed = {
+        let mut last = last_layout.lock().unwrap_or_else(|e| e.into_inner());
+        let changed = last.as_ref().is_some_and(|prev| *prev != layout);
+        *last = Some(layout.clone());
+        changed
+    };
+    // Lid closed with no external display: nothing to show on yet. The layout
+    // change when a screen returns triggers the re-show.
+    if layout.is_empty() {
+        return;
+    }
+    let reason = if !overlay_window.is_visible().unwrap_or(false) {
+        "panel hidden"
+    } else if overlay_window.current_monitor().ok().flatten().is_none() {
+        "panel has no screen"
+    } else if layout_changed {
+        "display layout changed"
+    } else {
+        return;
+    };
+    log::info!("Re-showing always-visible overlay: {reason}");
+    show_overlay_state_on_main(app_handle, IDLE_STATE);
 }
 
 // Cached "overlay is enabled" flag, kept in sync with overlay_style. Avoids

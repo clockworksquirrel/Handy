@@ -369,6 +369,8 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     // Create the recording overlay window (hidden by default)
     utils::create_recording_overlay(app_handle);
     utils::sync_idle_overlay(app_handle);
+    #[cfg(target_os = "macos")]
+    utils::start_idle_overlay_watchdog(app_handle);
 }
 
 #[tauri::command]
