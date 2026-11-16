@@ -2048,6 +2048,10 @@ mod tests {
         RunOutcome {
             setup: RunSetup {
                 run_options: RunOptions::default(),
+                language: crate::language_detection::LanguageDecision {
+                    language: None,
+                    source: crate::language_detection::LanguageSource::Model,
+                },
                 languages: Vec::new(),
                 applied_language_hint: None,
                 output_was_translated: false,

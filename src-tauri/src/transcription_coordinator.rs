@@ -585,6 +585,7 @@ impl CoordinatorState {
                 mode: ShortcutActivation::Toggle,
                 hold_threshold: Duration::ZERO,
                 external: true,
+                received_at: now,
             },
             now,
         )

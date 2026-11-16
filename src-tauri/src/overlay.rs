@@ -917,7 +917,14 @@ fn reassert_idle_overlay_on_main(
         .map(|monitors| {
             monitors
                 .iter()
-                .map(|m| (m.position().x, m.position().y, m.size().width, m.size().height))
+                .map(|m| {
+                    (
+                        m.position().x,
+                        m.position().y,
+                        m.size().width,
+                        m.size().height,
+                    )
+                })
                 .collect()
         })
         .unwrap_or_default();

@@ -625,7 +625,7 @@ fn run_headless_transcription(app: &AppHandle, args: &CliArgs) -> i32 {
             for frame in samples.chunks(480) {
                 router.feed(frame);
             }
-            tm.transcribe_recording(samples.clone())
+            tm.transcribe_recording(samples.clone()).map(|t| t.text)
         } else {
             tm.transcribe(samples.clone())
         };
