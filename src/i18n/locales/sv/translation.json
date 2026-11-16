@@ -608,6 +608,10 @@
         "downloadHint": "När du slår på det laddas en liten språkidentifiering ned",
         "downloadingHint": "Språkidentifieringen laddas ned. Stäng av för att avbryta"
       },
+      "liveFinalPass": {
+        "title": "Mer exakt slutlig transkription",
+        "description": "Med en strömmande modell transkriberas hela inspelningen igen när du stoppar och den texten används i stället för liveförhandsvisningen. Ofta mer exakt; ger en kort paus innan inklistring."
+      },
       "vadBackend": {
         "title": "Backend för röstdetektering",
         "description": "Välj detektorn som används för att filtrera bort tystnad. Earshot är experimentell; byt tillbaka till Silero om tal klipps eller brus behålls.",

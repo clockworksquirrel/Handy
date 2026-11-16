@@ -567,6 +567,12 @@ pub struct AppSettings {
     /// [`AppSettings::language_detection_window_samples`], which clamps it.
     #[serde(default = "default_language_detection_window_secs")]
     pub language_detection_window_secs: u32,
+    /// When a streaming model produced the live preview, transcribe the whole
+    /// recording again in batch when it stops and use that text. A full-context
+    /// decode is often more accurate than the incremental stream (e.g. for
+    /// atypical speech); costs one batch run per dictation.
+    #[serde(default)]
+    pub live_final_pass: bool,
     /// Which recording overlay to show: None / Minimal / Live. Streaming mode is
     /// not gated on this — that follows model capability. Migrated from the old
     /// `overlay_position` (position `none` → style `None`).
@@ -1087,6 +1093,7 @@ pub fn get_default_settings() -> AppSettings {
         long_form_chunking: default_long_form_chunking(),
         language_detection: LanguageDetectionMode::default(),
         language_detection_window_secs: default_language_detection_window_secs(),
+        live_final_pass: false,
         overlay_style: default_overlay_style(),
         overlay_always_visible: false,
         voice_commands_enabled: false,

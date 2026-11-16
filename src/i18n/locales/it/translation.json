@@ -608,6 +608,10 @@
         "downloadHint": "Attivandolo si scarica un piccolo rilevatore di lingua",
         "downloadingHint": "Download del rilevatore di lingua in corso. Disattiva per annullare"
       },
+      "liveFinalPass": {
+        "title": "Trascrizione finale più accurata",
+        "description": "Con un modello in streaming, ritrascrive l'intera registrazione quando ti fermi e usa quel testo invece dell'anteprima dal vivo. Spesso più accurato; aggiunge una breve pausa prima di incollare."
+      },
       "vadBackend": {
         "title": "Backend di rilevamento vocale",
         "description": "Scegli il rilevatore usato per filtrare il silenzio. Earshot è sperimentale; torna a Silero se il parlato viene tagliato o il rumore viene mantenuto.",

@@ -415,6 +415,14 @@ async changeLongFormChunkingSetting(enabled: boolean) : Promise<Result<null, str
     else return { status: "error", error: e  as any };
 }
 },
+async changeLiveFinalPassSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_live_final_pass_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeVadBackendSetting(backend: VadBackend) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_vad_backend_setting", { backend }) };
@@ -1212,6 +1220,13 @@ long_form_chunking?: boolean; language_detection?: LanguageDetectionMode;
  * [`AppSettings::language_detection_window_samples`], which clamps it.
  */
 language_detection_window_secs?: number; 
+/**
+ * When a streaming model produced the live preview, transcribe the whole
+ * recording again in batch when it stops and use that text. A full-context
+ * decode is often more accurate than the incremental stream (e.g. for
+ * atypical speech); costs one batch run per dictation.
+ */
+live_final_pass?: boolean; 
 /**
  * Which recording overlay to show: None / Minimal / Live. Streaming mode is
  * not gated on this — that follows model capability. Migrated from the old

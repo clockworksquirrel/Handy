@@ -608,6 +608,10 @@
         "downloadHint": "Turning this on downloads a small language detector",
         "downloadingHint": "Downloading the language detector. Turn this off to cancel"
       },
+      "liveFinalPass": {
+        "title": "Accurate Final Transcript",
+        "description": "With a streaming model, transcribes the whole recording again when you stop and uses that text instead of the live preview. Often more accurate; adds a short pause before pasting."
+      },
       "vadBackend": {
         "title": "Voice Activity Backend",
         "description": "Choose the detector used to filter silence. Earshot is experimental; switch back to Silero if speech is clipped or noise is retained.",

@@ -608,6 +608,10 @@
         "downloadHint": "Beim Einschalten wird eine kleine Spracherkennung heruntergeladen",
         "downloadingHint": "Die Spracherkennung wird heruntergeladen. Zum Abbrechen ausschalten"
       },
+      "liveFinalPass": {
+        "title": "Genauere finale Transkription",
+        "description": "Bei einem Streaming-Modell wird die gesamte Aufnahme nach dem Stoppen erneut transkribiert und dieser Text statt der Live-Vorschau verwendet. Oft genauer; kurze Verzögerung vor dem Einfügen."
+      },
       "vadBackend": {
         "title": "VAD-Backend",
         "description": "Wählt den Detektor zum Herausfiltern von Stille. Earshot ist experimentell; wechseln Sie zurück zu Silero, wenn Sprache abgeschnitten oder Rauschen beibehalten wird.",

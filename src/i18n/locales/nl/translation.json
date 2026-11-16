@@ -608,6 +608,10 @@
         "downloadHint": "Aanzetten downloadt een kleine taaldetector",
         "downloadingHint": "De taaldetector wordt gedownload. Zet dit uit om te annuleren"
       },
+      "liveFinalPass": {
+        "title": "Nauwkeurigere eindtranscriptie",
+        "description": "Bij een streamingmodel wordt de hele opname na het stoppen opnieuw getranscribeerd en die tekst gebruikt in plaats van de live-preview. Vaak nauwkeuriger; korte pauze voor het plakken."
+      },
       "vadBackend": {
         "title": "VAD-backend",
         "description": "Kies de detector die stilte filtert. Earshot is experimenteel; schakel terug naar Silero als spraak wordt afgekapt of ruis behouden blijft.",

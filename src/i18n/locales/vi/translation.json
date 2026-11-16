@@ -608,6 +608,10 @@
         "downloadHint": "Bật lên sẽ tải xuống một trình nhận diện ngôn ngữ nhỏ",
         "downloadingHint": "Đang tải xuống trình nhận diện ngôn ngữ. Tắt để hủy"
       },
+      "liveFinalPass": {
+        "title": "Bản chép lời cuối chính xác hơn",
+        "description": "Với mô hình phát trực tuyến, chép lại toàn bộ bản ghi khi bạn dừng và dùng văn bản đó thay cho bản xem trước trực tiếp. Thường chính xác hơn; thêm một khoảng dừng ngắn trước khi dán."
+      },
       "vadBackend": {
         "title": "Bộ phát hiện giọng nói",
         "description": "Chọn bộ phát hiện dùng để lọc khoảng lặng. Earshot đang thử nghiệm; hãy chuyển về Silero nếu giọng nói bị cắt hoặc tiếng ồn vẫn còn.",

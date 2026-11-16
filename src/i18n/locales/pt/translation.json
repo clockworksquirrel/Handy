@@ -608,6 +608,10 @@
         "downloadHint": "Ativar isto baixa um pequeno detector de idioma",
         "downloadingHint": "Baixando o detector de idioma. Desative para cancelar"
       },
+      "liveFinalPass": {
+        "title": "Transcrição final mais precisa",
+        "description": "Com um modelo de streaming, transcreve novamente toda a gravação ao parar e usa esse texto em vez da pré-visualização ao vivo. Geralmente mais preciso; adiciona uma breve pausa antes de colar."
+      },
       "vadBackend": {
         "title": "Backend de detecção de voz",
         "description": "Escolha o detector usado para filtrar o silêncio. O Earshot é experimental; volte para o Silero se a fala for cortada ou o ruído for mantido.",

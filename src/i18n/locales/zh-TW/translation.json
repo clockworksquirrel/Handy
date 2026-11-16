@@ -608,6 +608,10 @@
         "downloadHint": "開啟後會下載一個小型語言偵測器",
         "downloadingHint": "正在下載語言偵測器。關閉此項即可取消"
       },
+      "liveFinalPass": {
+        "title": "更準確的最終轉錄",
+        "description": "使用串流模型時，停止後會重新轉錄整段錄音，並以該文字取代即時預覽。通常更準確；貼上前會稍微延遲。"
+      },
       "vadBackend": {
         "title": "語音活動偵測後端",
         "description": "選擇用於過濾靜音的偵測器。Earshot 為實驗性功能；若語音被截斷或雜訊被保留，請切換回 Silero。",
