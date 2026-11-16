@@ -576,6 +576,14 @@ pub struct AppSettings {
     /// overlay. No effect when `overlay_style` is None.
     #[serde(default)]
     pub overlay_always_visible: bool,
+    /// Apply spoken commands ("new line", "comma", "scratch that", "press
+    /// enter") to dictation before post-processing. See `voice_commands`.
+    #[serde(default)]
+    pub voice_commands_enabled: bool,
+    /// Insert emoji for "<name> emoji" in dictation (separate opt-in from
+    /// `voice_commands_enabled`). See `voice_commands`.
+    #[serde(default)]
+    pub voice_emoji_enabled: bool,
 }
 
 fn default_model() -> String {
@@ -1081,6 +1089,8 @@ pub fn get_default_settings() -> AppSettings {
         language_detection_window_secs: default_language_detection_window_secs(),
         overlay_style: default_overlay_style(),
         overlay_always_visible: false,
+        voice_commands_enabled: false,
+        voice_emoji_enabled: false,
     }
 }
 

@@ -453,20 +453,37 @@ pub(crate) struct ProcessedTranscription {
     pub post_process_prompt: Option<String>,
     /// `final_text` is the bare transcript because post-processing failed.
     pub post_process_failed: bool,
+    /// A trailing "press enter" voice command asked to submit after pasting.
+    pub submit: bool,
 }
 
+/// `dictation` enables spoken voice commands (when on in settings); file
+/// transcriptions pass false so recorded speech is never rewritten as commands.
 pub(crate) async fn process_transcription_output(
     app: &AppHandle,
     transcription: &str,
     post_process: bool,
+    dictation: bool,
 ) -> ProcessedTranscription {
     let settings = get_settings(app);
     let mut final_text = transcription.to_string();
     let mut post_processed_text: Option<String> = None;
     let mut post_process_prompt: Option<String> = None;
     let mut post_process_failed = false;
+    let mut submit = false;
 
-    if post_process {
+    // Before post-processing, so the LLM sees the intended punctuation/breaks.
+    if dictation && (settings.voice_commands_enabled || settings.voice_emoji_enabled) {
+        let output = crate::voice_commands::apply_voice_commands(
+            &final_text,
+            settings.voice_commands_enabled,
+            settings.voice_emoji_enabled,
+        );
+        final_text = output.text;
+        submit = output.submit;
+    }
+
+    if post_process && !(submit && final_text.is_empty()) {
         // A reply that's blank once cleaned is no better than none.
         let outcome = match tokio::time::timeout(
             POST_PROCESS_TIMEOUT,
@@ -489,6 +506,13 @@ pub(crate) async fn process_transcription_output(
             PostProcessOutcome::Skipped => {}
             PostProcessOutcome::Failed => post_process_failed = true,
             PostProcessOutcome::Done(processed_text) => {
+                // Again after the LLM: its corrections ("emergency" -> "emoji")
+                // can complete a spoken emoji the raw transcript missed.
+                let processed_text = if dictation && settings.voice_emoji_enabled {
+                    crate::voice_commands::apply_voice_emoji(&processed_text)
+                } else {
+                    processed_text
+                };
                 post_processed_text = Some(processed_text.clone());
                 final_text = processed_text;
 
@@ -510,6 +534,7 @@ pub(crate) async fn process_transcription_output(
         post_processed_text,
         post_process_prompt,
         post_process_failed,
+        submit,
     }
 }
 
@@ -839,7 +864,12 @@ impl ShortcutAction for TranscribeAction {
                                 }
                             }
                             let Some(processed) = complete_unless_cancelled(
-                                process_transcription_output(&ah, &transcription, post_process),
+                                process_transcription_output(
+                                    &ah,
+                                    &transcription,
+                                    post_process,
+                                    true,
+                                ),
                                 || rm.was_cancelled_since(cancel_generation),
                             )
                             .await
@@ -871,6 +901,7 @@ impl ShortcutAction for TranscribeAction {
                                 }
                             }
 
+                            let submit = processed.submit;
                             // The user's hook only changes what gets pasted;
                             // history above keeps the text as produced.
                             let Some(final_text) = complete_unless_cancelled(
@@ -885,7 +916,8 @@ impl ShortcutAction for TranscribeAction {
                                 return;
                             };
 
-                            if final_text.is_empty() {
+                            // A bare "press enter" voice command still pastes (submit only).
+                            if final_text.is_empty() && !submit {
                                 finish_without_text(&ah, input_silent, sample_count, stop_time);
                             } else {
                                 let ah_clone = ah.clone();
@@ -914,7 +946,7 @@ impl ShortcutAction for TranscribeAction {
                                         let owns_ui =
                                             || RECORDING_SESSION.load(Ordering::SeqCst) == session;
                                         let (outcome, notice) =
-                                            match utils::paste(final_text, ah_clone.clone()) {
+                                            match utils::paste(final_text, ah_clone.clone(), submit) {
                                                 Ok(utils::PasteOutcome::Pasted) => {
                                                     debug!(
                                                         "Text pasted successfully in {:?}",

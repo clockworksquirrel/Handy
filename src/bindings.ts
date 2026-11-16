@@ -431,6 +431,22 @@ async changeFillerWordRemovalEnabledSetting(enabled: boolean) : Promise<Result<n
     else return { status: "error", error: e  as any };
 }
 },
+async changeVoiceCommandsEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_voice_commands_enabled_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeVoiceEmojiEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_voice_emoji_enabled_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeChineseScriptSetting(script: ChineseScript) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_chinese_script_setting", { script }) };
@@ -1206,7 +1222,17 @@ overlay_style?: OverlayStyle;
  * Keep an idle pill on screen between recordings instead of hiding the
  * overlay. No effect when `overlay_style` is None.
  */
-overlay_always_visible?: boolean }
+overlay_always_visible?: boolean; 
+/**
+ * Apply spoken commands ("new line", "comma", "scratch that", "press
+ * enter") to dictation before post-processing. See `voice_commands`.
+ */
+voice_commands_enabled?: boolean; 
+/**
+ * Insert emoji for "<name> emoji" in dictation (separate opt-in from
+ * `voice_commands_enabled`). See `voice_commands`.
+ */
+voice_emoji_enabled?: boolean }
 export type AudioDevice = { index: string; name: string; is_default: boolean }
 export type AutoSubmitKey = "enter" | "ctrl_enter" | "cmd_enter"
 export type AutoUnavailableReason = 
