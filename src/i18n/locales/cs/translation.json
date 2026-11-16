@@ -389,6 +389,10 @@
           "push_to_talk": "Nahrává, dokud držíte zkratku",
           "toggle": "Klepněte na zkratku pro zahájení nahrávání, klepněte znovu pro zastavení"
         }
+      },
+      "alwaysShowOverlay": {
+        "title": "Always Show Overlay",
+        "description": "Keep a small idle pill on screen between recordings. Click it to start or stop dictation; it expands while recording."
       }
     },
     "models": {
@@ -982,6 +986,7 @@
   "overlay": {
     "transcribing": "Přepisuji...",
     "processing": "Zpracovávám...",
+    "clickToDictate": "Click to dictate",
     "loadingModel": "Načítání modelu..."
   },
   "secureInput": {

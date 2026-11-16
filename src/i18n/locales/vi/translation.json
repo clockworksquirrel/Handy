@@ -389,6 +389,10 @@
           "push_to_talk": "Ghi âm trong lúc bạn giữ phím tắt",
           "toggle": "Nhấn phím tắt để bắt đầu ghi âm, nhấn lại để dừng"
         }
+      },
+      "alwaysShowOverlay": {
+        "title": "Always Show Overlay",
+        "description": "Keep a small idle pill on screen between recordings. Click it to start or stop dictation; it expands while recording."
       }
     },
     "models": {
@@ -982,6 +986,7 @@
   "overlay": {
     "transcribing": "Đang chuyển đổi...",
     "processing": "Đang xử lý...",
+    "clickToDictate": "Click to dictate",
     "loadingModel": "Đang tải mô hình..."
   },
   "secureInput": {

@@ -389,6 +389,10 @@
           "push_to_talk": "按住快捷鍵期間錄音",
           "toggle": "輕按快捷鍵開始錄音，再次輕按停止"
         }
+      },
+      "alwaysShowOverlay": {
+        "title": "Always Show Overlay",
+        "description": "Keep a small idle pill on screen between recordings. Click it to start or stop dictation; it expands while recording."
       }
     },
     "models": {
@@ -982,6 +986,7 @@
   "overlay": {
     "transcribing": "正在轉錄...",
     "processing": "處理中...",
+    "clickToDictate": "Click to dictate",
     "loadingModel": "正在載入模型..."
   },
   "secureInput": {

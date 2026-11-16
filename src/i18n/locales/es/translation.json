@@ -389,6 +389,10 @@
           "push_to_talk": "Graba mientras mantienes pulsado el atajo",
           "toggle": "Toca el atajo para empezar a grabar, tócalo de nuevo para detener"
         }
+      },
+      "alwaysShowOverlay": {
+        "title": "Always Show Overlay",
+        "description": "Keep a small idle pill on screen between recordings. Click it to start or stop dictation; it expands while recording."
       }
     },
     "models": {
@@ -982,6 +986,7 @@
   "overlay": {
     "transcribing": "Transcribiendo...",
     "processing": "Procesando...",
+    "clickToDictate": "Click to dictate",
     "loadingModel": "Cargando modelo..."
   },
   "secureInput": {

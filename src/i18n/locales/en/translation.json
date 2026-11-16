@@ -389,6 +389,10 @@
           "push_to_talk": "Records while you hold the shortcut",
           "toggle": "Tap the shortcut to start recording, tap again to stop"
         }
+      },
+      "alwaysShowOverlay": {
+        "title": "Always Show Overlay",
+        "description": "Keep a small idle pill on screen between recordings. Click it to start or stop dictation; it expands while recording."
       }
     },
     "models": {
@@ -982,6 +986,7 @@
   "overlay": {
     "transcribing": "Transcribing...",
     "processing": "Processing...",
+    "clickToDictate": "Click to dictate",
     "loadingModel": "Loading model..."
   },
   "secureInput": {

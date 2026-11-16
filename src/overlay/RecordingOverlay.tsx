@@ -17,6 +17,7 @@ import type { ModelStateEvent } from "@/lib/types/events";
 import { getLanguageDirection } from "@/lib/utils/rtl";
 
 type OverlayState =
+  | "idle"
   | "recording"
   | "streaming"
   | "transcribing"
@@ -85,6 +86,12 @@ const RecordingOverlay: React.FC = () => {
   const fadeTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   const smoothedLevelsRef = useRef<number[]>(Array(16).fill(0));
+  // Time of the last accepted overlay click; drops the second click of a
+  // double-click so it can't start and immediately stop a recording.
+  const lastClickRef = useRef(0);
+  // Set once the backend has driven the overlay, so the startup idle check
+  // below can't override a session that began before it resolved.
+  const receivedShowRef = useRef(false);
   // Live-text scroll-back: the text region "sticks" to the newest line while the
   // user is at the bottom; if they scroll up to read history, auto-follow pauses
   // until they scroll back down.
@@ -101,12 +108,17 @@ const RecordingOverlay: React.FC = () => {
 
       const unlistenShow = await listen("show-overlay", async (event) => {
         const overlayState = event.payload as OverlayState;
+        receivedShowRef.current = true;
         clearTimeout(fadeTimerRef.current);
         if (!isNoticeState(overlayState)) setNotice(null);
         // Reset synchronously before settings I/O. A fast microphone can emit
         // recording-ready while the awaits below are in flight; resetting after
         // them would overwrite that event and leave the overlay stuck arming.
-        if (overlayState === "recording" || overlayState === "streaming") {
+        if (
+          overlayState === "idle" ||
+          overlayState === "recording" ||
+          overlayState === "streaming"
+        ) {
           setCaptureReady(false);
           smoothedLevelsRef.current = Array(16).fill(0);
           setLevels(Array(WAVE_BARS).fill(0));
@@ -218,6 +230,21 @@ const RecordingOverlay: React.FC = () => {
     };
 
     setupEventListeners();
+
+    // The backend shows the idle pill at startup, possibly before the listeners
+    // above exist; recover that missed event from settings.
+    commands
+      .getAppSettings()
+      .then((settings) => {
+        if (settings.status !== "ok" || receivedShowRef.current) return;
+        const s = settings.data;
+        if (s.overlay_always_visible && s.overlay_style !== "none") {
+          setPosition(s.overlay_position === "top" ? "top" : "bottom");
+          setState("idle");
+          setIsVisible(true);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Elapsed capture timer starts only once microphone samples are flowing.
@@ -272,6 +299,14 @@ const RecordingOverlay: React.FC = () => {
     pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight <= 16;
   };
 
+  // Clicking the pill toggles dictation: idle starts it, recording stops it.
+  const toggleFromOverlay = () => {
+    const now = Date.now();
+    if (now - lastClickRef.current < 400) return;
+    lastClickRef.current = now;
+    commands.overlayToggleRecording();
+  };
+
   const fmtTime = (s: number) =>
     `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
@@ -297,7 +332,10 @@ const RecordingOverlay: React.FC = () => {
     <button
       className="sx"
       aria-label="cancel"
-      onClick={() => commands.cancelOperation()}
+      onClick={(e) => {
+        e.stopPropagation(); // don't also toggle via the row's click
+        commands.cancelOperation();
+      }}
     >
       <svg viewBox="0 0 16 16" aria-hidden="true">
         <path
@@ -313,7 +351,7 @@ const RecordingOverlay: React.FC = () => {
   // dot (left) | waveform (center) | timer + cancel (right) — same structure for
   // pill & panel, so the Live morph is a pure width change.
   const listeningRow = (showTimer: boolean, showCancel: boolean) => (
-    <div className="sbase">
+    <div className="sbase sclick" onClick={toggleFromOverlay}>
       <div className="sbase-l">
         <span className={`sdot ${captureReady ? "ready" : "arming"}`} />
       </div>
@@ -322,6 +360,36 @@ const RecordingOverlay: React.FC = () => {
         {showTimer && <span className="stimer">{fmtTime(elapsed)}</span>}
         {showCancel && cancelBtn}
       </div>
+    </div>
+  );
+
+  // Idle pill (always-visible overlay): a mic + hint, so it reads as a button
+  // rather than a silent waveform. Clicking starts dictation.
+  const idleRow = (
+    <div
+      className="sbase sclick sidle-row"
+      role="button"
+      title={t("overlay.clickToDictate")}
+      onClick={toggleFromOverlay}
+    >
+      <svg className="smic" viewBox="0 0 16 16" aria-hidden="true">
+        <rect
+          x="5.25"
+          y="1.5"
+          width="5.5"
+          height="8.5"
+          rx="2.75"
+          fill="currentColor"
+        />
+        <path
+          d="M3.25 7.75a4.75 4.75 0 0 0 9.5 0M8 12.5v2"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          fill="none"
+        />
+      </svg>
+      <span className="sidle-label">{t("overlay.clickToDictate")}</span>
     </div>
   );
 
@@ -432,7 +500,10 @@ const RecordingOverlay: React.FC = () => {
   // ---- Minimal overlay: exactly one row at a time — waveform (recording), or a
   // spinner + label (transcribing / processing). Never both. The pill animates its
   // width between them; the cancel button is in both rows so it stays put.
+  // The idle pill (always-visible overlay) is the same card at its own width,
+  // so idle -> recording is the same width morph as the others.
   const working = state === "transcribing" || state === "processing";
+  const idle = state === "idle";
   const workLabel =
     state === "processing" ? t("overlay.processing") : transcribingLabel;
 
@@ -443,7 +514,9 @@ const RecordingOverlay: React.FC = () => {
     >
       {noticeProbe}
       <div
-        className={`scard compact ${working && isVisible ? "cworking" : ""} ${noticeClass}`}
+        className={`scard compact ${working && isVisible ? "cworking" : ""} ${noticeClass} ${
+          idle && !shownNotice ? "sidle" : ""
+        }`}
         style={shownNotice ? { width: noticeWidth } : undefined}
         onClick={dismissNotice}
       >
@@ -451,7 +524,9 @@ const RecordingOverlay: React.FC = () => {
           ? noticeRow
           : working
             ? workingRow(workLabel, true)
-            : listeningRow(false, true)}
+            : idle
+              ? idleRow
+              : listeningRow(false, true)}
       </div>
     </div>
   );

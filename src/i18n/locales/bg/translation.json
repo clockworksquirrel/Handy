@@ -389,6 +389,10 @@
           "push_to_talk": "Записва, докато държите комбинацията натисната",
           "toggle": "Натиснете кратко комбинацията, за да започне записът, и отново, за да спре"
         }
+      },
+      "alwaysShowOverlay": {
+        "title": "Always Show Overlay",
+        "description": "Keep a small idle pill on screen between recordings. Click it to start or stop dictation; it expands while recording."
       }
     },
     "models": {
@@ -982,6 +986,7 @@
   "overlay": {
     "transcribing": "Транскрибиране...",
     "processing": "Обработка...",
+    "clickToDictate": "Click to dictate",
     "loadingModel": "Зареждане на модела..."
   },
   "secureInput": {

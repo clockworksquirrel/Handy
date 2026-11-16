@@ -389,6 +389,10 @@
           "push_to_talk": "ショートカットを押している間だけ録音します",
           "toggle": "ショートカットをタップすると録音を開始し、もう一度タップすると停止します"
         }
+      },
+      "alwaysShowOverlay": {
+        "title": "Always Show Overlay",
+        "description": "Keep a small idle pill on screen between recordings. Click it to start or stop dictation; it expands while recording."
       }
     },
     "models": {
@@ -982,6 +986,7 @@
   "overlay": {
     "transcribing": "文字起こし中…",
     "processing": "処理中…",
+    "clickToDictate": "Click to dictate",
     "loadingModel": "モデルを読み込み中…"
   },
   "secureInput": {

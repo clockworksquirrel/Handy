@@ -401,6 +401,9 @@ fn initialize_core_logic(app_handle: &AppHandle) {
 
     // Create the recording overlay window (hidden by default)
     utils::create_recording_overlay(app_handle);
+    utils::sync_idle_overlay(app_handle);
+    #[cfg(target_os = "macos")]
+    utils::start_idle_overlay_watchdog(app_handle);
 }
 
 #[tauri::command]
@@ -703,6 +706,7 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_spoken_languages_setting,
             shortcut::change_overlay_position_setting,
             shortcut::change_overlay_style_setting,
+            shortcut::change_overlay_always_visible_setting,
             shortcut::change_debug_mode_setting,
             shortcut::change_word_correction_threshold_setting,
             shortcut::change_extra_recording_buffer_setting,
@@ -758,6 +762,7 @@ pub fn run(cli_args: CliArgs) {
             trigger_update_check,
             show_main_window_command,
             commands::cancel_operation,
+            commands::overlay_toggle_recording,
             commands::is_portable,
             commands::is_update_checks_locked,
             commands::get_app_dir_path,

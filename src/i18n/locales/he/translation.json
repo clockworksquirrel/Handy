@@ -389,6 +389,10 @@
           "push_to_talk": "מקליט כל עוד קיצור הדרך לחוץ",
           "toggle": "הקישו על קיצור הדרך כדי להתחיל להקליט, והקישו שוב כדי לעצור"
         }
+      },
+      "alwaysShowOverlay": {
+        "title": "Always Show Overlay",
+        "description": "Keep a small idle pill on screen between recordings. Click it to start or stop dictation; it expands while recording."
       }
     },
     "models": {
@@ -982,6 +986,7 @@
   "overlay": {
     "transcribing": "מתמלל...",
     "processing": "מעבד...",
+    "clickToDictate": "Click to dictate",
     "loadingModel": "טוען מודל..."
   },
   "secureInput": {
